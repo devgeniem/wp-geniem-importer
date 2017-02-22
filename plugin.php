@@ -1,0 +1,61 @@
+<?php
+/**
+ * Plugin Name: Geniem Importer
+ * Plugin URI:  https://github.com/devgeniem/geniem-importer
+ * Description: An object-oriented and developer friendly WordPress importer.
+ * Version:     0.0.1
+ * Author:      Geniem
+ * Author URI:  http://www.geniem.fi/
+ * License:     GPL3
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ * Text Domain: geniem-importer
+ * Domain Path: /languages
+ */
+
+namespace Geniem;
+
+use Geniem\Importer\Settings;
+
+defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+
+/**
+ * The base class for the plugin.
+ *
+ * @package Geniem
+ */
+class Importer_Plugin {
+
+    /**
+     * Holds the general plugin data.
+     *
+     * @var array
+     */
+    protected static $plugin_data = [
+        'VERSION'       => '0.0.1',
+    ];
+
+    /**
+     * Initialize the plugin.
+     */
+    public static function init() {
+        // Set the basic settings.
+        Settings::init( self::$plugin_data );
+
+        // Initialize the plugin autoloader.
+        require 'vendor/psr4-autoloader.php';
+
+        $loader = new \Geniem\Importer\Psr4_Autoloader();
+        $loader->register();
+
+        // Add the plugin base namespace.
+        $loader->add_namespace( 'Geniem\Importer', dirname( __FILE__ ) . '/src' );
+
+        /**
+         * Loads the plugin textdomain.
+         */
+        load_plugin_textdomain( 'geniem-importer', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+    }
+}
+
+// Initialize the plugin.
+add_action( 'init', __NAMESPACE__ . '\\Importer_Plugin::init' );

@@ -1,0 +1,22 @@
+{
+    "name": "devgeniem/geniem-importer",
+    "type": "wordpress-plugin",
+    "description": "A WordPress plugin that enables commenting for DustPress based themes.",
+    "authors": [
+        {
+            "name": "Ville Siltala",
+            "email": "ville.siltala@geniem.com",
+            "homepage": "http://geniem.com/",
+            "role": "Developer"
+        }
+    ],
+    "keywords": [
+        "wordpress", "plugin", "importer"
+    ],
+    "license": "GPL-3.0",
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.4",
+        "composer/installers": "^1.0.12"
+    }
+}
