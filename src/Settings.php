@@ -31,11 +31,9 @@ class Settings {
     public static function init( $plugin_data ) {
         self::$settings = $plugin_data;
 
-        if ( defined( 'GI_ID_PREFIX' ) ) {
-            self::$settings['GI_ID_PREFIX'] = GI_ID_PREFIX;
-        } else {
-            self::$settings['GI_ID_PREFIX'] = 'gi_id_';
-        }
+        self::set_setting( 'GI_ID_PREFIX', 'gi_id_' );
+        self::set_setting( 'GI_TRANSIENT_KEY', 'gi_' );
+        self::set_setting( 'GI_TRANSIENT_EXPIRATION', HOUR_IN_SECONDS );
     }
 
     /**
@@ -65,12 +63,19 @@ class Settings {
 
     /**
      * Setter for a single setting.
+     * Every setting is overridable via constants.
      *
      * @param string $key   The setting key.
      * @param mixed  $value The setting value.
      */
     public static function set_setting( $key, $value ) {
         $key = strtoupper( $key );
-        self::$settings[ $key  ] = $value;
+        if ( defined( $key ) ) {
+            // Set the constant value.
+            self::$settings[ $key ] = constant( $key );
+        } else {
+            // Set the value.
+            self::$settings[ $key ] = $value;
+        }
     }
 }

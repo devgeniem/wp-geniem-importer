@@ -37,12 +37,48 @@ class Post {
      */
     protected $post;
 
+    /**
+     * Metadata in an associative array.
+     *
+     * @var array
+     */
     protected $meta = [];
 
-    protected $pll;
+    /**
+     * Taxonomies in a multidimensional associative array.
+     *
+     * @see $this->set_taxonomies() For description.
+     *
+     * @var array
+     */
+    protected $taxonomies = [];
 
+    /**
+     * An array for Polylang locale data.
+     *
+     * @var array
+     */
+    protected $pll = [];
+
+    /**
+     * An array of Advanced Custom Fields data.
+     *
+     * @var array
+     */
     protected $acf = [];
 
+    /**
+     * Error messages under correspondings scopes as the key.
+     *
+     * Example:
+     *      [
+     *          'post' => [
+     *              'post_title' => 'The post title is not valid.'
+     *          ]
+     *      ]
+     *
+     * @var array
+     */
     protected $errors = [];
 
     /**
@@ -50,11 +86,10 @@ class Post {
      */
     public function __construct( $gi_id = null ) {
         if ( null === $gi_id ) {
-           $this->errors['gi_id'] = __(
-               'A unique id must be set for the Post constructor.', 'geniem-importer' );
+           $this->set_error( 'id', 'gi_id', __( 'A unique id must be set for the Post constructor.', 'geniem-importer' ) );
         } else {
             // Fetch the WP post id, if it exists.
-            $this->post_id = self::get_post_id( $this->gi_id );
+            $this->post_id = self::get_post_id( $gi_id );
             if ( $this->post_id ) {
                 // Fetch the existing WP post object.
                 $this->post = get_post( $this->post_id );
@@ -74,7 +109,7 @@ class Post {
     /**
      * Sets the basic data of a post.
      *
-     * @param WP_Post|object $post Post object.
+     * @param WP_Post|object $post_obj Post object.
      */
     public function set_post( $post_obj ) {
 
@@ -103,13 +138,13 @@ class Post {
      *
      * @param WP_Post $post_obj An WP_Post instance.
      */
-    protected function validate_post( $post_obj ) {
+    public function validate_post( $post_obj ) {
         $errors = [];
 
         // TODO!
 
         if ( ! empty( $errors ) ) {
-            $this->errors['post'] = $errors;
+            $this->set_error( 'post', $errors );
         }
     }
 
@@ -124,15 +159,51 @@ class Post {
     }
 
     /**
-     * V
+     * Validate postmeta.
      */
-    protected function validate_meta( $meta ) {
+    public function validate_meta( $meta ) {
         $errors = [];
 
         // TODO!
 
         if ( ! empty( $errors ) ) {
-            $this->errors['meta'] = $errors;
+            $this->set_error( 'meta', $errors );
+        }
+    }
+
+    /**
+     * Set the taxonomies of the post.
+     * The taxonomies must be passed as an associative array
+     * where the key is the taxonomy slug and values are associative array
+     * with the name and the slug of the taxonomy term.
+     * Example:
+     *      $tax_array = [
+     *          'category' => [
+     *              [
+     *                  'name' => 'My category',
+     *                  'slug' => 'my-category',
+     *              ]
+     *      ];
+     *
+     * @param array $tax_array The taxonomy data.
+     */
+    public function set_taxonomies( $tax_array = [] ) {
+        $this->taxonomies = $tax_array;
+        $this->validate_taxonomies( $this->taxonomies );
+    }
+
+    /**
+     * @param $taxonomies
+     */
+    public function validate_taxonomies( $taxonomies ) {
+        $errors = [];
+
+        foreach ( $taxonomies as $taxonomy ) {
+            // TODO!!!
+        }
+
+        if ( ! empty( $errors ) ) {
+            $this->set_error( 'taxonomies', $errors );
         }
     }
 
@@ -143,6 +214,11 @@ class Post {
      */
     public function save() {
         if ( ! $this->is_valid() ) {
+            // Store the invalid data for later access.
+            $key          = Settings::get_setting( 'GI_TRANSIENT_KEY' ) . 'invalid_post_' . $this->gi_id;
+            $expiration   = Settings::get_setting( 'GI_TRANSIENT_EXPIRATION' );
+            set_transient( $key, get_object_vars( $this ), $expiration );
+
             throw new PostException( __( 'The post data is not valid.', 'geniem-importer' ), 0, $this->get_errors() );
         }
 
@@ -165,6 +241,11 @@ class Post {
             $this->save_meta();
         }
 
+        // Save taxonomies.
+        if ( ! empty( $this->taxonomies ) ) {
+            $this->save_taxonomies();
+        }
+
         // Remove the filter to prevent filtering data from other than importer inserts.
         remove_filter( 'wp_insert_post_data', [ __CLASS__, 'pre_post_save' ] );
     }
@@ -174,8 +255,56 @@ class Post {
      */
     protected function save_meta() {
         if ( is_array( $this->meta ) ) {
-            foreach ( $this->meta as $meta_key => $meta_value ) {
-                update_post_meta( $this->post_id, $meta_key, $meta_value );
+            foreach ( $this->meta as $meta_obj ) {
+                update_post_meta( $this->post_id, $meta_obj->meta_key, $meta_obj->meta_value );
+            }
+        }
+    }
+
+    /**
+     * Sets the terms of a post and create taxonomy terms
+     * if they do not exist yet.
+     */
+    protected function save_taxonomies() {
+        if ( is_array( $this->taxonomies ) ) {
+            foreach ( $this->taxonomies as $taxonomy => $terms ) {
+                if ( is_array( $terms ) ) {
+                    foreach ( $terms as &$term ) {
+                        $name       = $term['name'];
+                        $slug       = $term['slug'];
+                        $term_obj   = get_term_by( 'slug', $slug, $taxonomy );
+
+                        // If the term does not exist, create it.
+                        if ( ! $term_obj ) {
+
+                            // There might be a parent set.
+                            $parent = isset( $term['parent'] ) ?: get_term_by( 'slug', $term['parent'], $taxonomy );
+
+                            // Insert the new term.
+                            $result = wp_insert_term(
+                                $name,
+                                $taxonomy,
+                                [
+                                    'slug'          => $slug,
+                                    'description'   => isset( $term['description'] ) ?: $term['description'],
+                                    'parent'        => $parent ? $parent->term_id : 0,
+                                ]
+                            );
+
+                            // Something went wrong.
+                            if ( is_wp_error( $result ) ) {
+                                self::set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
+                            }
+
+                            // We only need the id.
+                            $term_obj           = (object) [];
+                            $term_obj->term_id  = $result['term_id'];
+                        }
+
+                        // Set the term and store the result.
+                        $term['success'] = $wp_set_object_terms( $this->post_id, $term_obj->term_id, $taxonomy );
+                    }
+                }
             }
         }
     }
@@ -238,5 +367,22 @@ class Post {
      */
     public static function pre_post_save( $post_data ) {
         return apply_filters( 'geniem_importer_post_pre_save', $post_data );
+    }
+
+    /**
+     * Sets a single error message or a full error array depending on the $key value.
+     *
+     * @param string        $scope The error scope.
+     * @param string|array  $key   The key or the error array.
+     * @param string        $error The error message.
+     */
+    protected function set_error( $scope = '', $key = '', $error = '' ) {
+        $this->errors[ $scope ] = isset( $this->errors[ $scope ] ) ? $this->errors[ $scope ] : [];
+        if ( is_array( $key ) ) {
+            // Set the full error array.
+            $this->errors[ $scope ] = $key;
+        } else {
+            $this->errors[ $scope ][ $key ] = $error;
+        }
     }
 }
