@@ -18,5 +18,8 @@
     "require": {
         "php": ">=5.4",
         "composer/installers": "^1.0.12"
+    },
+    "autoload": {
+        "psr-4": {"Geniem\\Importer\\": "src/"}
     }
 }

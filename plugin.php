@@ -41,18 +41,12 @@ class Importer_Plugin {
         // Set the basic settings.
         Settings::init( self::$plugin_data );
 
-        // Initialize the plugin autoloader.
-        require 'vendor/psr4-autoloader.php';
+        // If a custom autoloader exists, use it.
+        if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+            require __DIR__ . '/vendor/autoload.php';
+        }
 
-        $loader = new \Geniem\Importer\Psr4_Autoloader();
-        $loader->register();
-
-        // Add the plugin base namespace.
-        $loader->add_namespace( 'Geniem\Importer', dirname( __FILE__ ) . '/src' );
-
-        /**
-         * Loads the plugin textdomain.
-         */
+         // Load the plugin textdomain.
         load_plugin_textdomain( 'geniem-importer', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
     }
 }
