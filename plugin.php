@@ -14,7 +14,7 @@
 
 namespace Geniem;
 
-use Geniem\Importer\Settings;
+use Importer\Settings as Settings;
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
