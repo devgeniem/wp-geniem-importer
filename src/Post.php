@@ -169,15 +169,45 @@ class Post {
 
         // Validate the comment status.
         if ( isset( $post_obj->comment_status ) ) {
-            $comment_statuses = [
-                'hold',
-                'approve',
-                'spam',
-                'trash',
-            ];
+            $comment_statuses = [ 'hold', 'approve', 'spam', 'trash' ];
             if ( ! in_array( $post_obj->comment_status, $comment_statuses, true ) ) {
                 $err = __( 'Error in the "comment_status" column. The value is not a valid comment status.', 'geniem-importer' );
                 $this->set_error( $err_scope, 'comment_status', $err );
+            }
+        }
+
+        // Validate the post parent.
+        if ( isset( $post_obj->post_parent ) ) {
+            $parent_id = $post_obj->post_parent;
+            // The parent is in query format.
+            if ( self::is_query_id( $parent_id ) ) {
+                if ( Api::get_post_id_by_api_id( $parent_id ) === false ) {
+                    $err = __( 'Error in the "post_parent" column. The queried post parent was not found.', 'geniem-importer' );
+                    $this->set_error( $err_scope, 'menu_order', $err );
+                }
+            }
+            // The parent is a WP post id.
+            else {
+                if ( \get_post( $parent_id ) === null ) {
+                    $err = __( 'Error in the "post_parent" column. The parent id did not match any post.', 'geniem-importer' );
+                    $this->set_error( $err_scope, 'menu_order', $err );
+                }
+            }
+        }
+
+        if ( isset( $post_obj->menu_order ) ) {
+            if ( ! is_integer( $post_obj->menu_order ) ) {
+                $err = __( 'Error in the "menu_order" column. The value must be an integer.', 'geniem-importer' );
+                $this->set_error( $err_scope, 'menu_order', $err );
+            }
+        }
+
+        // Validate the post type.
+        if ( isset( $post_obj->post_type ) ) {
+            $post_types = get_post_types();
+            if ( ! array_key_exists( $post_obj->post_type, $post_types ) ) {
+                $err = __( 'Error in the "post_type" column. The value does not match a registered post type.', 'geniem-importer' );
+                $this->set_error( $err_scope, 'post_type', $err );
             }
         }
     }
@@ -411,5 +441,16 @@ class Post {
         if ( Settings::get( 'GI_LOG_ERRORS' ) ) {
             error_log( 'Geniem Importer: ' . $error );
         }
+    }
+
+    /**
+     * Check if a string matches the post id query format.
+     *
+     * @param $id_string The id string to inspect.
+     *
+     * @return bool
+     */
+    public static function is_query_id( $id_string ) {
+        return substr( $post_obj->post_parent, 0, 5 ) === Settings::get( 'GI_ID_PREFIX' );
     }
 }
