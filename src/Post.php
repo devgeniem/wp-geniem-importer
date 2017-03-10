@@ -2,7 +2,6 @@
 /**
  * The Post class is used to import posts into WordPres.
  */
-
 namespace Geniem\Importer;
 
 use Geniem\Importer\Exception\PostException as PostException;
@@ -48,7 +47,6 @@ class Post {
      * Taxonomies in a multidimensional associative array.
      *
      * @see $this->set_taxonomies() For description.
-     *
      * @var array
      */
     protected $taxonomies = [];
@@ -69,7 +67,6 @@ class Post {
 
     /**
      * Error messages under correspondings scopes as the key.
-     *
      * Example:
      *      [
      *          'post' => [
@@ -86,7 +83,7 @@ class Post {
      */
     public function __construct( $gi_id = null ) {
         if ( null === $gi_id ) {
-           $this->set_error( 'id', 'gi_id', __( 'A unique id must be set for the Post constructor.', 'geniem-importer' ) );
+            $this->set_error( 'id', 'gi_id', __( 'A unique id must be set for the Post constructor.', 'geniem-importer' ) );
         } else {
             // Fetch the WP post id, if it exists.
             $this->post_id = self::get_post_id( $gi_id );
@@ -112,7 +109,6 @@ class Post {
      * @param WP_Post|object $post_obj Post object.
      */
     public function set_post( $post_obj ) {
-
         // If the post already exists, update values.
         if ( ! empty( $this->post ) ) {
             foreach ( get_object_vars( $post_obj ) as $attr => $value ) {
@@ -120,15 +116,13 @@ class Post {
             }
         } else {
             // Set the post object.
-            $this->post     = new \WP_Post( $post_obj );
-            $this->post_id  = null;
+            $this->post    = new \WP_Post( $post_obj );
+            $this->post_id = null;
         }
-
         // Filter values before validating.
         foreach ( get_object_vars( $this->post ) as $attr => $value ) {
             $this->post->{$attr} = apply_filters( "geniem_importer_post_values_{$attr}", $value );
         }
-
         // Validate it.
         $this->validate_post( $this->post );
     }
@@ -136,15 +130,67 @@ class Post {
     /**
      * Validates the post object data.
      *
-     * @param WP_Post $post_obj An WP_Post instance.
+     * @param \WP_Post $post_obj An WP_Post instance.
      */
     public function validate_post( $post_obj ) {
-        $errors = [];
+        $err_scope = 'post';
 
-        // TODO!
+        // Validate the author.
+        if ( isset( $post_obj->author ) ) {
+            $user = get_userdata( $post_obj->author );
+            if ( $user === false ) {
+                $err = __( 'Error in the "author" column. The value must be a valid user id.', 'geniem-importer' );
+                $this->set_error( $err_scope, 'author', $err );
+            }
+        }
 
-        if ( ! empty( $errors ) ) {
-            $this->set_error( 'post', $errors );
+        // Validate date values
+        if ( isset( $post_obj->post_date ) ) {
+            $this->validate_date( $post_obj->post_date, 'post_date' );
+        }
+        if ( isset( $post_obj->post_date_gmt ) ) {
+            $this->validate_date( $post_obj->post_date_gmt, 'post_date_gmt' );
+        }
+        if ( isset( $post_obj->post_modified ) ) {
+            $this->validate_date( $post_obj->post_modified, 'post_modified' );
+        }
+        if ( isset( $post_obj->post_modified_gtm ) ) {
+            $this->validate_date( $post_obj->post_modified_gtm, 'post_modified_gtm' );
+        }
+
+        // Validate the post status.
+        if ( isset( $post_obj->post_status ) ) {
+            $post_statuses = get_post_statuses();
+            if ( ! array_key_exists( $post_obj->post_status, $post_statuses ) ) {
+                $err = __( 'Error in the "post_status" column. The value is not a valid post status.', 'geniem-importer' );
+                $this->set_error( $err_scope, 'post_status', $err );
+            }
+        }
+
+        // Validate the comment status.
+        if ( isset( $post_obj->comment_status ) ) {
+            $comment_statuses = [
+                'hold',
+                'approve',
+                'spam',
+                'trash',
+            ];
+            if ( ! in_array( $post_obj->comment_status, $comment_statuses, true ) ) {
+                $err = __( 'Error in the "comment_status" column. The value is not a valid comment status.', 'geniem-importer' );
+                $this->set_error( $err_scope, 'comment_status', $err );
+            }
+        }
+    }
+
+    /**
+     * @param string $date_string The datetime string.
+     * @param string $col_name    The posts table column name.
+     */
+    public function validate_date( $date_string = '', $col_name = '' ) {
+        $valid = \DateTime::createFromFormat( 'Y-m-d H:i:s', $date_string );
+        if ( ! $valid ) {
+            $err = __( "Error in the \"$col_name\" column. The value is not a valid datetime string.", 'geniem-importer' );
+            $this->set_error( $err_scope, $col_name, $err );
         }
     }
 
@@ -163,9 +209,7 @@ class Post {
      */
     public function validate_meta( $meta ) {
         $errors = [];
-
         // TODO!
-
         if ( ! empty( $errors ) ) {
             $this->set_error( 'meta', $errors );
         }
@@ -197,11 +241,9 @@ class Post {
      */
     public function validate_taxonomies( $taxonomies ) {
         $errors = [];
-
         foreach ( $taxonomies as $taxonomy ) {
             // TODO!!!
         }
-
         if ( ! empty( $errors ) ) {
             $this->set_error( 'taxonomies', $errors );
         }
@@ -215,37 +257,29 @@ class Post {
     public function save() {
         if ( ! $this->is_valid() ) {
             // Store the invalid data for later access.
-            $key          = Settings::get_setting( 'GI_TRANSIENT_KEY' ) . 'invalid_post_' . $this->gi_id;
-            $expiration   = Settings::get_setting( 'GI_TRANSIENT_EXPIRATION' );
+            $key        = Settings::get( 'GI_TRANSIENT_KEY' ) . 'invalid_post_' . $this->gi_id;
+            $expiration = Settings::get( 'GI_TRANSIENT_EXPIRATION' );
             set_transient( $key, get_object_vars( $this ), $expiration );
-
             throw new PostException( __( 'The post data is not valid.', 'geniem-importer' ), 0, $this->get_errors() );
         }
-
         $post_arr = (array) $this->post;
-
         // Add the final post data filtering for imports.
         add_filter( 'wp_insert_post_data', [ __CLASS__, 'pre_post_save' ], 1 );
-
         // Run the WP save function.
         $post_id = wp_insert_post( $post_arr );
-
         // Identify the post, if not yet done.
         if ( empty( $this->post_id ) ) {
             $this->post_id = $post_id;
             $this->identify();
         }
-
         // Save metadata.
         if ( ! empty( $this->meta ) ) {
             $this->save_meta();
         }
-
         // Save taxonomies.
         if ( ! empty( $this->taxonomies ) ) {
             $this->save_taxonomies();
         }
-
         // Remove the filter to prevent filtering data from other than importer inserts.
         remove_filter( 'wp_insert_post_data', [ __CLASS__, 'pre_post_save' ] );
     }
@@ -270,39 +304,29 @@ class Post {
             foreach ( $this->taxonomies as $taxonomy => $terms ) {
                 if ( is_array( $terms ) ) {
                     foreach ( $terms as &$term ) {
-                        $name       = $term['name'];
-                        $slug       = $term['slug'];
-                        $term_obj   = get_term_by( 'slug', $slug, $taxonomy );
-
+                        $name     = $term[ 'name' ];
+                        $slug     = $term[ 'slug' ];
+                        $term_obj = get_term_by( 'slug', $slug, $taxonomy );
                         // If the term does not exist, create it.
                         if ( ! $term_obj ) {
-
                             // There might be a parent set.
-                            $parent = isset( $term['parent'] ) ?: get_term_by( 'slug', $term['parent'], $taxonomy );
-
+                            $parent = isset( $term[ 'parent' ] ) ? : get_term_by( 'slug', $term[ 'parent' ], $taxonomy );
                             // Insert the new term.
-                            $result = wp_insert_term(
-                                $name,
-                                $taxonomy,
-                                [
-                                    'slug'          => $slug,
-                                    'description'   => isset( $term['description'] ) ?: $term['description'],
-                                    'parent'        => $parent ? $parent->term_id : 0,
-                                ]
-                            );
-
+                            $result = wp_insert_term( $name, $taxonomy, [
+                                    'slug'        => $slug,
+                                    'description' => isset( $term[ 'description' ] ) ? : $term[ 'description' ],
+                                    'parent'      => $parent ? $parent->term_id : 0,
+                                ] );
                             // Something went wrong.
                             if ( is_wp_error( $result ) ) {
                                 self::set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
                             }
-
                             // We only need the id.
-                            $term_obj           = (object) [];
-                            $term_obj->term_id  = $result['term_id'];
+                            $term_obj          = (object) [];
+                            $term_obj->term_id = $result[ 'term_id' ];
                         }
-
                         // Set the term and store the result.
-                        $term['success'] = $wp_set_object_terms( $this->post_id, $term_obj->term_id, $taxonomy );
+                        $term[ 'success' ] = $wp_set_object_terms( $this->post_id, $term_obj->term_id, $taxonomy );
                     }
                 }
             }
@@ -313,7 +337,7 @@ class Post {
      * Adds postmeta rows for matching a WP post with an external source.
      */
     protected function identify() {
-        $id_prefix = Settings::get_setting( 'GI_ID_PREFIX' );
+        $id_prefix = Settings::get( 'GI_ID_PREFIX' );
         // Remove the trailing '_'.
         $identificator = rtrim( $id_prefix, '_' );
         // Set the queryable identificator.
@@ -346,12 +370,11 @@ class Post {
      */
     public static function get_post_id( $gi_id ) {
         global $wpdb;
-
-        $id_prefix  = Settings::get_setting( 'GI_ID_PREFIX' );
-        $query      = 'SELECT DISTINCT post_id FROM wp_postmeta WHERE meta_key = %s';
-        $results    = $wpdb->get_col( $wpdb->prepare( $query, $id_prefix . $gi_id ) );
+        $id_prefix = Settings::get( 'GI_ID_PREFIX' );
+        $query     = 'SELECT DISTINCT post_id FROM wp_postmeta WHERE meta_key = %s';
+        $results   = $wpdb->get_col( $wpdb->prepare( $query, $id_prefix . $gi_id ) );
         if ( count( $results ) ) {
-            return $results[0];
+            return $results[ 0 ];
         } else {
             return false;
         }
@@ -372,9 +395,9 @@ class Post {
     /**
      * Sets a single error message or a full error array depending on the $key value.
      *
-     * @param string        $scope The error scope.
-     * @param string|array  $key   The key or the error array.
-     * @param string        $error The error message.
+     * @param string       $scope The error scope.
+     * @param string|array $key   The key or the error array.
+     * @param string       $error The error message.
      */
     protected function set_error( $scope = '', $key = '', $error = '' ) {
         $this->errors[ $scope ] = isset( $this->errors[ $scope ] ) ? $this->errors[ $scope ] : [];
@@ -383,6 +406,10 @@ class Post {
             $this->errors[ $scope ] = $key;
         } else {
             $this->errors[ $scope ][ $key ] = $error;
+        }
+        // Maybe log errors.
+        if ( Settings::get( 'GI_LOG_ERRORS' ) ) {
+            error_log( 'Geniem Importer: ' . $error );
         }
     }
 }

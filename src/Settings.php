@@ -1,10 +1,8 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: villes
- * Date: 22/02/17
- * Time: 12:37
+ * Plugin settings controller.
  */
+
 namespace Geniem\Importer;
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
@@ -29,11 +27,13 @@ class Settings {
      * @param array $plugin_data The basic plugin settings.
      */
     public static function init( $plugin_data ) {
+        // Sets the VERSION setting.
         self::$settings = $plugin_data;
 
-        self::set_setting( 'GI_ID_PREFIX', 'gi_id_' );
-        self::set_setting( 'GI_TRANSIENT_KEY', 'gi_' );
-        self::set_setting( 'GI_TRANSIENT_EXPIRATION', HOUR_IN_SECONDS );
+        self::set( 'GI_ID_PREFIX', 'gi_id_' );
+        self::set( 'GI_LOG_ERRORS', false );
+        self::set( 'GI_TRANSIENT_KEY', 'gi_' );
+        self::set( 'GI_TRANSIENT_EXPIRATION', HOUR_IN_SECONDS );
     }
 
     /**
@@ -43,7 +43,7 @@ class Settings {
      *
      * @return mixed|null The setting value, if found, null if not.
      */
-    public static function get_setting( $key ) {
+    public static function get( $key ) {
         $key = strtoupper( $key );
         if ( isset( self::$settings[ $key ] ) ) {
             self::$settings[ $key ];
@@ -57,18 +57,18 @@ class Settings {
      *
      * @return array
      */
-    public static function get_settings() {
+    public static function get_all() {
         return self::$settings;
     }
 
     /**
      * Setter for a single setting.
-     * Every setting is overridable via constants.
+     * Every setting is overridable with constants.
      *
      * @param string $key   The setting key.
      * @param mixed  $value The setting value.
      */
-    public static function set_setting( $key, $value ) {
+    public static function set( $key, $value ) {
         $key = strtoupper( $key );
         if ( defined( $key ) ) {
             // Set the constant value.
