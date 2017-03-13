@@ -121,7 +121,7 @@ class Post {
         }
         // Filter values before validating.
         foreach ( get_object_vars( $this->post ) as $attr => $value ) {
-            $this->post->{$attr} = apply_filters( "geniem_importer_post_values_{$attr}", $value );
+            $this->post->{$attr} = apply_filters( "geniem_importer_post_value_{$attr}", $value );
         }
         // Validate it.
         $this->validate_post( $this->post );
@@ -137,7 +137,7 @@ class Post {
 
         // Validate the author.
         if ( isset( $post_obj->author ) ) {
-            $user = get_userdata( $post_obj->author );
+            $user = \get_userdata( $post_obj->author );
             if ( $user === false ) {
                 $err = __( 'Error in the "author" column. The value must be a valid user id.', 'geniem-importer' );
                 $this->set_error( $err_scope, 'author', $err );
@@ -146,21 +146,21 @@ class Post {
 
         // Validate date values
         if ( isset( $post_obj->post_date ) ) {
-            $this->validate_date( $post_obj->post_date, 'post_date' );
+            $this->validate_date( $post_obj->post_date, 'post_date', $err_scope );
         }
         if ( isset( $post_obj->post_date_gmt ) ) {
-            $this->validate_date( $post_obj->post_date_gmt, 'post_date_gmt' );
+            $this->validate_date( $post_obj->post_date_gmt, 'post_date_gmt', $err_scope );
         }
         if ( isset( $post_obj->post_modified ) ) {
-            $this->validate_date( $post_obj->post_modified, 'post_modified' );
+            $this->validate_date( $post_obj->post_modified, 'post_modified', $err_scope );
         }
         if ( isset( $post_obj->post_modified_gtm ) ) {
-            $this->validate_date( $post_obj->post_modified_gtm, 'post_modified_gtm' );
+            $this->validate_date( $post_obj->post_modified_gtm, 'post_modified_gtm', $err_scope );
         }
 
         // Validate the post status.
         if ( isset( $post_obj->post_status ) ) {
-            $post_statuses = get_post_statuses();
+            $post_statuses = \get_post_statuses();
             if ( ! array_key_exists( $post_obj->post_status, $post_statuses ) ) {
                 $err = __( 'Error in the "post_status" column. The value is not a valid post status.', 'geniem-importer' );
                 $this->set_error( $err_scope, 'post_status', $err );
@@ -195,6 +195,7 @@ class Post {
             }
         }
 
+        // Validate the menu order.
         if ( isset( $post_obj->menu_order ) ) {
             if ( ! is_integer( $post_obj->menu_order ) ) {
                 $err = __( 'Error in the "menu_order" column. The value must be an integer.', 'geniem-importer' );
@@ -215,8 +216,9 @@ class Post {
     /**
      * @param string $date_string The datetime string.
      * @param string $col_name    The posts table column name.
+     * @param string $err_scope   The error scope name.
      */
-    public function validate_date( $date_string = '', $col_name = '' ) {
+    public function validate_date( $date_string = '', $col_name = '', $err_scope = '' ) {
         $valid = \DateTime::createFromFormat( 'Y-m-d H:i:s', $date_string );
         if ( ! $valid ) {
             $err = __( "Error in the \"$col_name\" column. The value is not a valid datetime string.", 'geniem-importer' );
@@ -229,8 +231,13 @@ class Post {
      *
      * @param array $meta_data The meta data in an associative array.
      */
-    public function set_meta( $meta_data ) {
-        $this->meta = $meta_data;
+    public function set_meta( $meta_data = [] ) {
+        // Force type to array.
+        $this->meta = (array) $meta_data;
+        // Filter values before validating.
+        foreach ( $this->meta as $key => $value ) {
+            $this->meta[$key] = apply_filters( "geniem_importer_meta_value_{$key}", $value );
+        }
         $this->validate_meta( $this->meta );
     }
 
@@ -262,20 +269,34 @@ class Post {
      * @param array $tax_array The taxonomy data.
      */
     public function set_taxonomies( $tax_array = [] ) {
-        $this->taxonomies = $tax_array;
+        // Force type to array.
+        $this->taxonomies = (array) $tax_array;
+        // Filter values before validating.
+        foreach ( $this->taxonomies as $key => $value ) {
+            $this->taxonomies[$key] = apply_filters( "geniem_importer_taxonomy_{$key}", $value );
+        }
         $this->validate_taxonomies( $this->taxonomies );
     }
 
     /**
-     * @param $taxonomies
+     * Validate the taxonomy array.
+     *
+     * @param array $taxonomies The set taxonomies for the post.
      */
     public function validate_taxonomies( $taxonomies ) {
-        $errors = [];
-        foreach ( $taxonomies as $taxonomy ) {
-            // TODO!!!
+        if ( ! is_array( $taxonomies ) ) {
+            $err = __( "Error in the taxonomies. Taxonomies must be passed in an associative array.", 'geniem-importer' );
+            $this->set_error( 'taxonomy', $taxonomy, $err );
+            return;
         }
-        if ( ! empty( $errors ) ) {
-            $this->set_error( 'taxonomies', $errors );
+
+        // The passed taxonomies must be currently registered.
+        $registered_taxonomies = \get_taxonomies();
+        foreach ( $taxonomies as $taxonomy => $terms ) {
+            if ( ! in_array( $taxonomy, $registered_taxonomies, true ) ) {
+                $err = __( "Error in the \"$taxonomy\" taxonomy. The taxonomy is not registerd.", 'geniem-importer' );
+                $this->set_error( 'taxonomy', $taxonomy, $err );
+            }
         }
     }
 
@@ -293,25 +314,35 @@ class Post {
             throw new PostException( __( 'The post data is not valid.', 'geniem-importer' ), 0, $this->get_errors() );
         }
         $post_arr = (array) $this->post;
-        // Add the final post data filtering for imports.
+
+        // Add filters for data modifications before and after importer related database actions.
         add_filter( 'wp_insert_post_data', [ __CLASS__, 'pre_post_save' ], 1 );
+        add_filter( 'wp_insert_post', [ __CLASS__, 'after_post_save' ], 1 );
+
+        // Add the
+
         // Run the WP save function.
         $post_id = wp_insert_post( $post_arr );
+
         // Identify the post, if not yet done.
         if ( empty( $this->post_id ) ) {
             $this->post_id = $post_id;
             $this->identify();
         }
+
         // Save metadata.
         if ( ! empty( $this->meta ) ) {
             $this->save_meta();
         }
+
         // Save taxonomies.
         if ( ! empty( $this->taxonomies ) ) {
             $this->save_taxonomies();
         }
-        // Remove the filter to prevent filtering data from other than importer inserts.
+
+        // Remove the custom filters.
         remove_filter( 'wp_insert_post_data', [ __CLASS__, 'pre_post_save' ] );
+        remove_filter( 'wp_insert_post', [ __CLASS__, 'after_post_save' ] );
     }
 
     /**
@@ -343,10 +374,10 @@ class Post {
                             $parent = isset( $term[ 'parent' ] ) ? : get_term_by( 'slug', $term[ 'parent' ], $taxonomy );
                             // Insert the new term.
                             $result = wp_insert_term( $name, $taxonomy, [
-                                    'slug'        => $slug,
-                                    'description' => isset( $term[ 'description' ] ) ? : $term[ 'description' ],
-                                    'parent'      => $parent ? $parent->term_id : 0,
-                                ] );
+                                'slug'        => $slug,
+                                'description' => isset( $term[ 'description' ] ) ? : $term[ 'description' ],
+                                'parent'      => $parent ? $parent->term_id : 0,
+                            ] );
                             // Something went wrong.
                             if ( is_wp_error( $result ) ) {
                                 self::set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
@@ -413,13 +444,18 @@ class Post {
     /**
      * This function creates a filter for the 'wp_insert_posts_data' hook
      * which is enabled only while importing post data with Geniem Importer.
+     * Use this to customize the imported data before any database actions.
      *
-     * @param $post_data
+     * @param object $post_data The post data to be saved.
      *
-     * @return mixed|void
+     * @return mixed
      */
     public static function pre_post_save( $post_data ) {
-        return apply_filters( 'geniem_importer_post_pre_save', $post_data );
+        return apply_filters( 'geniem_importer_pre_post_save', $post_data );
+    }
+
+    public static function after_post_save( $post_ID, $post, $update ) {
+        return apply_filters( 'geniem_importer_after_post_save', $post_ID, $post, $update );
     }
 
     /**
@@ -446,7 +482,7 @@ class Post {
     /**
      * Check if a string matches the post id query format.
      *
-     * @param $id_string The id string to inspect.
+     * @param string $id_string The id string to inspect.
      *
      * @return bool
      */
