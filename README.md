@@ -24,7 +24,7 @@ wp plugin activate geniem-importer
 
 ### Importing post objects
 
-The plugin creates a namespaced api providing functions for importing various data types. An example of importing a single post can be found [here](docs/examples/example-post-php).
+The plugin creates a namespaced api providing functions for importing various data types. An example of importing a single post can be found [here](docs/examples/example-post.php).
 
 ## Contributors
 
