@@ -3,7 +3,7 @@
  * Plugin Name: Geniem Importer
  * Plugin URI:  https://github.com/devgeniem/geniem-importer
  * Description: An object-oriented and developer friendly WordPress importer.
- * Version:     0.0.1
+ * Version:     0.1.0
  * Author:      Geniem
  * Author URI:  http://www.geniem.fi/
  * License:     GPL3
@@ -15,6 +15,7 @@
 namespace Geniem;
 
 use \Geniem\Importer\Settings as Settings;
+use \Geniem\Importer\Polylang as Polylang;
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
@@ -31,7 +32,7 @@ class Importer_Plugin {
      * @var array
      */
     protected static $plugin_data = [
-        'VERSION'       => '0.0.1',
+        'VERSION'       => '0.1.0',
     ];
 
     /**
@@ -40,6 +41,7 @@ class Importer_Plugin {
     public static function init() {
         // Set the basic settings.
         Settings::init( self::$plugin_data );
+        Polylang::init();
 
         // If a custom autoloader exists, use it.
         if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {

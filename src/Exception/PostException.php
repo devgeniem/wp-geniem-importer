@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
  *
  * @package Geniem\Importer\Exception
  */
-class PostException extends Exception {
+class PostException extends \Exception {
 
     /**
      * Holds errors found in validating the post.
