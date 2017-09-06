@@ -2,11 +2,10 @@
 /**
  * The Post class is used to import posts into WordPres.
  */
+
 namespace Geniem\Importer;
 
-// Used classes
 use Geniem\Importer\Exception\PostException as PostException;
-use Geniem\Importer\Localization\Controller as Controller;
 use Geniem\Importer\Localization\Polylang as Polylang;
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
@@ -86,24 +85,38 @@ class Post {
     protected $acf = [];
 
     /**
-     * Error messages under correspondings scopes as the key.
-     * Example:
-     *      [
-     *          'post' => [
-     *              'post_title' => 'The post title is not valid.'
-     *          ]
-     *      ]
+     * Getter for post_id
      *
-     * @var array
+     * @return void
      */
-    protected $errors = [];
+    public function get_post_id() {
+        return $this->post_id;
+    }
+
+    /**
+     * Getter for ig_id
+     *
+     * @return void
+     */
+    public function get_gi_id() {
+        return $this->gi_id;
+    }
+
+    /**
+     * Getter for i18n
+     *
+     * @return void
+     */
+    public function get_i18n() {
+        return $this->i18n;
+    }
 
     /**
      * Post constructor.
      */
     public function __construct( $gi_id = null ) {
         if ( null === $gi_id ) {
-            $this->set_error( 'id', 'gi_id', __( 'A unique id must be set for the Post constructor.', 'geniem-importer' ) );
+            Errors::set( $this, 'id', 'gi_id', __( 'A unique id must be set for the Post constructor.', 'geniem-importer' ) );
         } else {
             // Set the Importer id.
             $this->gi_id = $gi_id;
@@ -114,15 +127,6 @@ class Post {
                 $this->post = get_post( $this->post_id );
             }
         }
-    }
-
-    /**
-     * Returns the instance errors.
-     *
-     * @return array
-     */
-    public function get_errors() {
-        return $this->errors;
     }
 
     /**
@@ -165,7 +169,7 @@ class Post {
             $user = \get_userdata( $post_obj->author );
             if ( false === $user ) {
                 $err = __( 'Error in the "author" column. The value must be a valid user id.', 'geniem-importer' );
-                $this->set_error( $err_scope, 'author', $err );
+                Errors::set( $this, $err_scope, 'author', $err );
             }
         }
 
@@ -188,10 +192,10 @@ class Post {
             $post_statuses = \get_post_statuses();
             if ( 'trash' === $post_obj->post_status ) {
                 $err = __( 'Error in the "post_status" column. The post is currently trashed, please solve before importing.', 'geniem-importer' );
-                $this->set_error( $err_scope, 'post_status', $err );
+                Errors::set( $this, $err_scope, 'post_status', $err );
             } elseif ( ! array_key_exists( $post_obj->post_status, $post_statuses ) ) {
                 $err = __( 'Error in the "post_status" column. The value is not a valid post status.', 'geniem-importer' );
-                $this->set_error( $err_scope, 'post_status', $err );
+                Errors::set( $this, $err_scope, 'post_status', $err );
             }
         }
 
@@ -200,7 +204,7 @@ class Post {
             $comment_statuses = [ 'hold', 'approve', 'spam', 'trash', 'open', 'closed' ];
             if ( ! in_array( $post_obj->comment_status, $comment_statuses, true ) ) {
                 $err = __( 'Error in the "comment_status" column. The value is not a valid comment status.', 'geniem-importer' );
-                $this->set_error( $err_scope, 'comment_status', $err );
+                Errors::set( $this, $err_scope, 'comment_status', $err );
             }
         }
 
@@ -212,7 +216,7 @@ class Post {
                 $parent_post_id = Api::get_post_id_by_api_id( $parent_id );
                 if ( $parent_post_id === false ) {
                     $err = __( 'Error in the "post_parent" column. The queried post parent was not found.', 'geniem-importer' );
-                    $this->set_error( $err_scope, 'menu_order', $err );
+                    Errors::set( $this, $err_scope, 'menu_order', $err );
                 } else {
                     // Set parent post id.
                     $post_obj->post_parent = $parent_post_id;
@@ -221,7 +225,7 @@ class Post {
             } else {
                 if ( \get_post( $parent_id ) === null ) {
                     $err = __( 'Error in the "post_parent" column. The parent id did not match any post.', 'geniem-importer' );
-                    $this->set_error( $err_scope, 'menu_order', $err );
+                    Errors::set( $this, $err_scope, 'menu_order', $err );
                 }
             }
         }
@@ -230,7 +234,7 @@ class Post {
         if ( isset( $post_obj->menu_order ) ) {
             if ( ! is_integer( $post_obj->menu_order ) ) {
                 $err = __( 'Error in the "menu_order" column. The value must be an integer.', 'geniem-importer' );
-                $this->set_error( $err_scope, 'menu_order', $err );
+                Errors::set( $this, $err_scope, 'menu_order', $err );
             }
         }
 
@@ -239,7 +243,7 @@ class Post {
             $post_types = get_post_types();
             if ( ! array_key_exists( $post_obj->post_type, $post_types ) ) {
                 $err = __( 'Error in the "post_type" column. The value does not match a registered post type.', 'geniem-importer' );
-                $this->set_error( $err_scope, 'post_type', $err );
+                Errors::set( $this, $err_scope, 'post_type', $err );
             }
         }
     }
@@ -253,7 +257,7 @@ class Post {
         $valid = \DateTime::createFromFormat( 'Y-m-d H:i:s', $date_string );
         if ( ! $valid ) {
             $err = __( "Error in the \"$col_name\" column. The value is not a valid datetime string.", 'geniem-importer' );
-            $this->set_error( $err_scope, $col_name, $err );
+            Errors::set( $this, $err_scope, $col_name, $err );
         }
     }
 
@@ -291,7 +295,7 @@ class Post {
     public function validate_meta( $meta ) {
         $errors = [];
         if ( ! empty( $errors ) ) {
-            $this->set_error( 'meta', $errors );
+            Errors::set( $this, 'meta', $errors );
         }
     }
 
@@ -329,7 +333,7 @@ class Post {
     public function validate_taxonomies( $taxonomies ) {
         if ( ! is_array( $taxonomies ) ) {
             $err = __( "Error in the taxonomies. Taxonomies must be passed in an associative array.", 'geniem-importer' );
-            $this->set_error( 'taxonomy', $taxonomy, $err );
+            Errors::set( $this, 'taxonomy', $taxonomy, $err );
             return;
         }
 
@@ -338,7 +342,7 @@ class Post {
         foreach ( $taxonomies as $term ) {
             if ( ! in_array( $term['taxonomy'], $registered_taxonomies, true ) ) {
                 $err = __( "Error in the \"{$term['taxonomy']}\" taxonomy. The taxonomy is not registerd.", 'geniem-importer' );
-                $this->set_error( 'taxonomy', $taxonomy, $err );
+                Errors::set( $this, 'taxonomy', $taxonomy, $err );
             }
             apply_filters( 'geniem_importer_validate_taxonomies', $taxonomies );
         }
@@ -370,17 +374,17 @@ class Post {
     public function validate_acf( $acf ) {
         $errors = [];
         if ( ! empty( $errors ) ) {
-            $this->set_error( 'acf', $errors );
+            Errors::set( $this, 'acf', $errors );
         }
     }
 
     /**
-     * Sets the post polylang data.
+     * Sets the post localization data.
      *
-     * @param array $pll_data The polylang data in an associative array.
+     * @param array $i18n_data The polylang data in an associative array.
      */
-    public function set_i18n( $pll_data ) {
-        $this->i18n = $pll_data;
+    public function set_i18n( $i18n_data ) {
+        $this->i18n = $i18n_data;
         $this->validate_i18n( $this->i18n );
     }
 
@@ -392,33 +396,31 @@ class Post {
     public function validate_i18n( $i18n ) {
 
         // Check if the polylang plugin is activated.
-        if ( Controller::get_activated_i18n_plugin() === false ) {
-            $err = __( 'Error, translation plugin doesn\'t seem to be installed.', 'geniem-importer' );
-            $this->set_error( 'i18n', $pll, $err );
+        if ( Localization\Controller::get_activated_i18n_plugin( $this ) === false ) {
             return;
         }
 
         // Check if data is an array.
         if ( ! is_array( $i18n ) ) {
             $err = __( "Error in the i18n data. The locale data must be passed in an associative array.", 'geniem-importer' );
-            $this->set_error( 'i18n', $i18n, $err );
+            Errors::set( $this, 'i18n', $i18n, $err );
             return;
         }
 
         // Check if locale is set and in the current installation.
         if ( ! isset( $i18n['locale'] ) ) {
             $err = __( 'Error in the polylang data. The locale is not set.', 'geniem-importer' );
-            $this->set_error( 'i18n', $i18n, $err );
+            Errors::set( $this, 'i18n', $i18n, $err );
         } elseif ( ! in_array( $i18n['locale'], Polylang::language_list() ) ) {
             $err = __( 'Error in the polylang data. The locale doesn\'t exist in the current WP installation', 'geniem-importer' );
-            $this->set_error( 'i18n', $i18n, $err );
+            Errors::set( $this, 'i18n', $i18n, $err );
         }
 
         // If a master post is set for the current post, check its validity.
         if ( isset( $i18n['master'] ) ) {
             if ( Api::is_query_id( $i18n['master']['query_key'] ?? '' ) === false ) {
                 $err = __( 'Error in the i18n data. The master query id is missing or invalid.', 'geniem-importer' );
-                $this->set_error( 'i18n', $i18n, $err );
+                Errors::set( $this, 'i18n', $i18n, $err );
             }
         }
 
@@ -472,8 +474,8 @@ class Post {
 
         // Save pll data.
         if ( ! empty( $this->i18n ) ) {
-            // @todo separate save_pll to own class 
-            Controller::save_locale( $this );
+            // @todo separate save_pll to own class
+            Localization\Controller::save_locale( $this );
         }
 
         // Check for errors after save process.
@@ -522,7 +524,7 @@ class Post {
 
                 // Something went wrong.
                 if ( is_wp_error( $attachment_post_id ) ) {
-                    $this->set_error( 'attachment', $name, __( 'An error occurred uploading the file.', 'geniem_importer' ) );
+                    Errors::set( $this, 'attachment', $name, __( 'An error occurred uploading the file.', 'geniem_importer' ) );
                 }
 
                 if ( $attachment_post_id ) {
@@ -592,7 +594,7 @@ class Post {
                     }
                     // Set error and skip
                     else {
-                        $this->set_error( 'meta', $meta_arr, __( 'Attachment not found.', 'geniem_importer' ) );
+                        Errors::set( $this, 'meta', $meta_arr, __( 'Attachment not found.', 'geniem_importer' ) );
                         unset( $this->meta[ $key ] );
                         continue;
                     }
@@ -635,50 +637,58 @@ class Post {
 
     /**
      * Saves the acf data of the post.
-     * @todo  Check if acf plugin exists, before this function, or inside
      */
     protected function save_acf() {
-        if ( is_array( $this->acf ) ) {
-            foreach ( $this->acf as $acf_arr ) {
-                // Key must be set.
-                if ( empty( $acf_arr['key'] ) ) {
-                    continue;
-                }
 
-                switch ( isset( $acf_arr['type'] ) ? $acf_arr['type'] : 'default' ) {
-                    case 'taxonomy':
-                        $terms = [];
-                        foreach ( $acf_arr['value'] as &$term ) {
-                            $term_obj = \get_term_by( 'slug', $term['slug'], $term['taxonomy'] );
-                            // If the term does not exist, create it.
-                            if ( ! $term_obj ) {
-                                $term_obj = $this->create_new_term( $term );
+        // If ACF is activated
+        if ( function_exists( 'get_field' ) ) {
+
+            if ( is_array( $this->acf ) ) {
+
+                foreach ( $this->acf as $acf_arr ) {
+                    // Key must be set.
+                    if ( empty( $acf_arr['key'] ) ) {
+                        continue;
+                    }
+
+                    switch ( isset( $acf_arr['type'] ) ? $acf_arr['type'] : 'default' ) {
+                        case 'taxonomy':
+                            $terms = [];
+                            foreach ( $acf_arr['value'] as &$term ) {
+                                $term_obj = \get_term_by( 'slug', $term['slug'], $term['taxonomy'] );
+                                // If the term does not exist, create it.
+                                if ( ! $term_obj ) {
+                                    $term_obj = $this->create_new_term( $term );
+                                }
+                                $terms[] = (int) $term_obj->term_id;
                             }
-                            $terms[] = (int) $term_obj->term_id;
-                        }
-                        if ( count( $terms ) ) {
-                            update_field( $acf_arr['key'], $terms, $this->post_id );
-                        }
-                        break;
+                            if ( count( $terms ) ) {
+                                update_field( $acf_arr['key'], $terms, $this->post_id );
+                            }
+                            break;
 
-                    case 'image':
-                        // Check if image exists.
-                        if ( ! empty( $attachment_post_id = $this->attachment_ids[ $acf_arr['value'] ] ) ) {
-                            update_field( $acf_arr['key'], $attachment_post_id, $this->post_id );
-                        } else {
-                            $err = "Image doesn't exists";
-                            $this->set_error( 'acf', 'image_field', $err );
-                        }
-                        break;
+                        case 'image':
+                            // Check if image exists.
+                            if ( ! empty( $attachment_post_id = $this->attachment_ids[ $acf_arr['value'] ] ) ) {
+                                update_field( $acf_arr['key'], $attachment_post_id, $this->post_id );
+                            } else {
+                                $err = "Image doesn't exists";
+                                Errors::set( $this, 'acf', 'image_field', $err );
+                            }
+                            break;
 
-                    // @todo Test which field type require no extra logic.
-                    // Currently tested: 'select'
-                    default:
-                        update_field( $acf_arr['key'], $acf_arr['value'], $this->post_id );
-                        break;
-                }
-            }
-        } // End if.
+                        // @todo Test which field type require no extra logic.
+                        // Currently tested: 'select'
+                        default:
+                            update_field( $acf_arr['key'], $acf_arr['value'], $this->post_id );
+                            break;
+                    }
+                } // End foreach().
+            } // End if().
+        } // End if().
+        else {
+            Errors::set( $this, 'acf', $name, __( 'Advanced Custom Fields is not active! Please install and activate the plugin to save acf meta fields.', 'geniem_importer' ) );
+        }
     }
 
     /**
@@ -703,7 +713,7 @@ class Post {
         ] );
         // Something went wrong.
         if ( is_wp_error( $result ) ) {
-            $this->set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
+            Errors::set( $this, 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
         }
 
         return (object) $result;
@@ -729,15 +739,20 @@ class Post {
 
     /**
      * Checks whether the current post is valid.
+     * 
+     * @throws PostException
      */
     protected function validate() {
-        if ( ! empty( $this->get_errors() ) ) {
+
+        $errors = Errors::get_all();
+
+        if ( ! empty( $errors ) ) {
             // Store the invalid data for later access.
             // @todo set invalid_post to settings class, add timestamp after gi_id Y-m-d
             $key        = Settings::get( 'GI_TRANSIENT_KEY' ) . 'invalid_post_' . $this->gi_id;
             $expiration = Settings::get( 'GI_TRANSIENT_EXPIRATION' );
             set_transient( $key, get_object_vars( $this ), $expiration );
-            throw new PostException( __( 'The post data is not valid.', 'geniem-importer' ), 0, $this->get_errors() );
+            throw new PostException( __( 'The post data is not valid.', 'geniem-importer' ), 0, $errors );
         }
     }
 
@@ -758,36 +773,12 @@ class Post {
     /**
      * This function creates a filter for the 'wp_insert_posts_data'
      * Use this to customize the imported data after any database actions.
-     * 
-     * @param [type] $postarr
-     * @return void
+     *
+     * @param array $postarr Post data array.
+     * @return array
      */
     public function after_post_save( $postarr ) {
         return apply_filters( 'geniem_importer_after_post_save', $postarr, $this->gi_id );
     }
 
-    /**
-     * Sets a single error message or a full error array depending on the $key value.
-     * @todo change this to $post to use it outside class
-     *
-     * @param string       $scope The error scope.
-     * @param string|array $data  The key or the error array.
-     * @param string       $error The error message.
-     */
-    protected function set_error( $scope = '', $data = '', $error = '' ) {
-
-        $this->errors[ $scope ] = $this->errors[ $scope ] ?? [];
-
-        $gi_id   = $this->gi_id ?? '-';
-        $message = '(' . Settings::get( 'GI_ID_PREFIX' ) . $gi_id . ') ' . $error;
-
-        $this->errors[ $scope ][] = [
-            'message' => $message,
-            'data'    => $data,
-        ];
-        // Maybe log errors.
-        if ( Settings::get( 'GI_LOG_ERRORS' ) ) {
-            error_log( 'Geniem Importer: ' . $error );
-        }
-    }
 }

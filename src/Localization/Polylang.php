@@ -5,6 +5,11 @@
 
 namespace Geniem\Importer\Localization;
 
+// Classes
+use Geniem\Importer\Api as Api;
+use Geniem\Importer\Settings as Settings;
+
+
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
 /**
@@ -66,7 +71,7 @@ class Polylang {
                 }
             }
             else {
-
+                // Media is not set.
             }
 
             self::$polylang = $polylang;
@@ -114,15 +119,56 @@ class Polylang {
     }
 
     /**
-     * [get_attachment_post_ids description]
-     * @param [type] $post_id    [description]
-     * @param [type] $tr_id      [description]
-     * @param [type] $lang->slug [description]
+     * Save Polylang locale.
+     *
+     * @param Geniem\Importer\Post $post The current importer post object.
+     * @return void
      */
-    public static function get_attachment_post_ids( $post_id, $tr_id, $lang_slug ) {
-        // $attachment_key = rtrim( Settings::get( 'GI_ATTACHMENT_PREFIX' ), '_' );
-        // var_dump( $attachment_key );
-        // $attachment_id  = get_post_meta( $post_id );
-        // var_dump( $attachment_id );
+    public static function save_pll_locale( $post ) {
+
+        // Get needed variables
+        $post_id    = $post->get_post_id();
+        $gi_id      = $post->get_gi_id();
+        $i18n       = $post->get_i18n();
+
+        // If pll information is in wrong format
+        if ( is_array( $i18n ) ) {
+
+            // Set post locale. 
+            \pll_set_post_language( $post_id, $i18n['locale'] );
+
+            // Check if we need to link the post to its master.
+            $master_key = $i18n['master']['query_key'] ?? null;
+
+            // If master key exists
+            if ( ! empty( $master_key ) ) {
+
+                // @todo Api check - T: What it this?
+                // Get master post id for translation linking
+                $gi_id_prefix   = Settings::get( 'GI_ID_PREFIX' );
+                $master_id      = substr( $master_key, strlen( $gi_id_prefix ) );
+                $master_post_id = Api::get_post_id_by_api_id( $master_id );
+
+                // Set link for translations.
+                if ( $master_post_id ) {
+
+                        // Get current translation.
+                        $current_translations = \pll_get_post_translations( $master_post_id );
+
+                        // Set up new translations.
+                        $new_translations = [
+                            'post_id'         => $master_post_id,
+                            $i18n['locale']   => $post_id,
+                        ];
+                        $parsed_args = \wp_parse_args( $new_translations, $current_translations );
+
+                        // Add and link translation.
+                        \pll_save_post_translations( $parsed_args );
+                } // End if().
+            } // End if().
+        } else {
+            // @todo show an error: Post doesn't have pll information in right format.
+
+        } // End if().
     }
 }
