@@ -3,7 +3,7 @@
  * Plugin settings controller.
  */
 
-namespace Geniem\Importer;
+namespace Geniem\Importer\Localization;
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
@@ -44,19 +44,33 @@ class Polylang {
             : null;
 
         if ( $polylang ) {
-            // Get current languages.
+            /**
+             * Get current languages.
+             * Returns list of language codes.
+             */
             self::$languages = pll_languages_list();
-            // Check if media duplication is on.
-            if ( $polylang->model->options['media_support'] && $polylang->options['media']['duplicate'] ?? 0 ) {
-                // Needed for PLL_Admin_Advanced_Media
-                $polylang->filters_media     = new \PLL_Admin_Filters_Media( $polylang );
-                // Acticates media duplication
-                $polylang->gi_advanced_media = new \PLL_Admin_Advanced_Media( $polylang );
-                // Hook into media duplication so we can add attachment_id meta.
-                # add_action( 'pll_translate_media', array( __CLASS__, 'get_attachment_post_ids' ), 11, 3 );
+
+            // media index might not be set by default
+            if ( isset( $polylang->options['media'] ) ) {
+
+                // Check if media duplication is on.
+                if ( $polylang->model->options['media_support'] && $polylang->options['media']['duplicate'] ?? 0 ) {
+
+                    // Needed for PLL_Admin_Advanced_Media
+                    $polylang->filters_media     = new \PLL_Admin_Filters_Media( $polylang );
+
+                    // Acticates media duplication
+                    $polylang->gi_advanced_media = new \PLL_Admin_Advanced_Media( $polylang );
+                    // Hook into media duplication so we can add attachment_id meta.
+                    # add_action( 'pll_translate_media', array( __CLASS__, 'get_attachment_post_ids' ), 11, 3 );
+                }
             }
+            else {
+
+            }
+
             self::$polylang = $polylang;
-        }
+        } // End if().
     }
 
     /**
@@ -68,7 +82,7 @@ class Polylang {
     }
 
     /**
-     * Returns the polylang language list.
+     * Returns the polylang language list of language codes.
      * @return array Polylang language list.
      */
     public static function language_list() {

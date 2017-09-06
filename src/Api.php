@@ -72,7 +72,7 @@ class Api {
     public static function is_query_id( $id_string ) {
         $gi_id_prefix  = Settings::get( 'GI_ID_PREFIX' );
         $prefix_length = strlen( $gi_id_prefix );
-        if ( strncmp( $id_string, $gi_id_prefix, $prefix_length ) === 0 ) {
+        if ( \strncmp( $id_string, $gi_id_prefix, $prefix_length ) === 0 ) {
             return substr( $id_string, $prefix_length );
         }
         return false;
@@ -95,6 +95,12 @@ class Api {
         return false;
     }
 
+    /**
+     * Delete all posts
+     *
+     * @param boolean $force_delete
+     * @return void
+     */
     public static function delete_all_posts( $force_delete = true ) {
         global $wpdb;
         $id_prefix     = Settings::get( 'GI_ID_PREFIX' );
@@ -109,6 +115,14 @@ class Api {
         }
     }
 
+    /**
+     * Get property
+     *
+     * @param array $item
+     * @param string $key
+     * @param string $default
+     * @return void
+     */
     public static function get_prop( $item = [], $key = '', $default = '' ) {
         if ( is_array( $item ) && isset( $item[ $key ] ) ) {
             return $item[ $key ];
@@ -119,6 +133,14 @@ class Api {
         }
     }
 
+    /**
+     * Set property
+     *
+     * @param array $item
+     * @param string $key
+     * @param string $value
+     * @return void
+     */
     public static function set_prop( $item = [], $key = '', $value = '' ) {
         if ( is_array( $item ) ) {
             $item[ $key ]   = $value;

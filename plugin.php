@@ -15,7 +15,7 @@
 namespace Geniem;
 
 use \Geniem\Importer\Settings as Settings;
-use \Geniem\Importer\Polylang as Polylang;
+use \Geniem\Importer\Localization\Polylang as Polylang;
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
@@ -32,7 +32,7 @@ class Importer_Plugin {
      * @var array
      */
     protected static $plugin_data = [
-        'VERSION'       => '0.1.0',
+        'VERSION' => '0.1.0',
     ];
 
     /**

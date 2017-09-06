@@ -2,10 +2,12 @@
 /**
  * The Post class is used to import posts into WordPres.
  */
-
 namespace Geniem\Importer;
 
+// Used classes
 use Geniem\Importer\Exception\PostException as PostException;
+use Geniem\Importer\Localization\Controller as Controller;
+use Geniem\Importer\Localization\Polylang as Polylang;
 
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 
@@ -70,11 +72,11 @@ class Post {
     protected $taxonomies = [];
 
     /**
-     * An array for Polylang locale data.
+     * An array for locale data.
      *
      * @var array
      */
-    protected $pll = [];
+    protected $i18n = [];
 
     /**
      * An array of Advanced Custom Fields data.
@@ -276,6 +278,7 @@ class Post {
         foreach ( $this->meta as $key => $value ) {
             $this->meta[ $key ] = apply_filters( "geniem_importer_meta_value_{$key}", $value );
         }
+  
         $this->validate_meta( $this->meta );
     }
 
@@ -376,46 +379,46 @@ class Post {
      *
      * @param array $pll_data The polylang data in an associative array.
      */
-    public function set_pll( $pll_data = [] ) {
-        // Force type to array.
-        $this->pll = (array) $pll_data;
-        $this->validate_pll( $this->pll );
+    public function set_i18n( $pll_data ) {
+        $this->i18n = $pll_data;
+        $this->validate_i18n( $this->i18n );
     }
 
     /**
-     * Validate the polylang array.
+     * Validate the locale array.
      *
      * @param array $pll The set pll data for the post.
      */
-    public function validate_pll( $pll ) {
+    public function validate_i18n( $i18n ) {
+
         // Check if the polylang plugin is activated.
-        if ( ! Polylang::pll() ) {
-            $err = __( 'Error, polylang doesn\'t seem to be installed.', 'geniem-importer' );
-            $this->set_error( 'pll', $pll, $err );
+        if ( Controller::get_activated_i18n_plugin() === false ) {
+            $err = __( 'Error, translation plugin doesn\'t seem to be installed.', 'geniem-importer' );
+            $this->set_error( 'i18n', $pll, $err );
             return;
         }
 
         // Check if data is an array.
-        if ( ! is_array( $pll ) ) {
-            $err = __( "Error in the polylang data. The polylang data must be passed in an associative array.", 'geniem-importer' );
-            $this->set_error( 'pll', $pll, $err );
+        if ( ! is_array( $i18n ) ) {
+            $err = __( "Error in the i18n data. The locale data must be passed in an associative array.", 'geniem-importer' );
+            $this->set_error( 'i18n', $i18n, $err );
             return;
         }
 
         // Check if locale is set and in the current installation.
-        if ( ! isset( $pll['locale'] ) ) {
+        if ( ! isset( $i18n['locale'] ) ) {
             $err = __( 'Error in the polylang data. The locale is not set.', 'geniem-importer' );
-            $this->set_error( 'pll', $pll, $err );
-        } elseif ( ! in_array( $pll['locale'], Polylang::language_list() ) ) {
+            $this->set_error( 'i18n', $i18n, $err );
+        } elseif ( ! in_array( $i18n['locale'], Polylang::language_list() ) ) {
             $err = __( 'Error in the polylang data. The locale doesn\'t exist in the current WP installation', 'geniem-importer' );
-            $this->set_error( 'pll', $pll, $err );
+            $this->set_error( 'i18n', $i18n, $err );
         }
 
         // If a master post is set for the current post, check its validity.
-        if ( isset( $pll['master'] ) ) {
-            if ( Api::is_query_id( $pll['master']['query_key'] ?? '' ) === false ) {
-                $err = __( "Error in the polylang data. The master query id is missing or invalid.", 'geniem-importer' );
-                $this->set_error( 'pll', $pll, $err );
+        if ( isset( $i18n['master'] ) ) {
+            if ( Api::is_query_id( $i18n['master']['query_key'] ?? '' ) === false ) {
+                $err = __( 'Error in the i18n data. The master query id is missing or invalid.', 'geniem-importer' );
+                $this->set_error( 'i18n', $i18n, $err );
             }
         }
 
@@ -428,9 +431,10 @@ class Post {
      * @return int Post id.
      */
     public function save() {
+
         // Check for errors before save process.
         $this->validate();
-        
+
         $post_arr = (array) $this->post;
 
         // Add filters for data modifications before and after importer related database actions.
@@ -467,8 +471,9 @@ class Post {
         }
 
         // Save pll data.
-        if ( ! empty( $this->pll ) ) {
-            $this->save_pll();
+        if ( ! empty( $this->i18n ) ) {
+            // @todo separate save_pll to own class 
+            Controller::save_locale( $this );
         }
 
         // Check for errors after save process.
@@ -498,10 +503,11 @@ class Post {
             require_once( ABSPATH . 'wp-admin/includes/image.php' );
         }
 
-        $attachment_prefix  = Settings::get( 'GI_ATTACHMENT_PREFIX' );
-        $attachment_language = Api::get_prop( $this->pll, 'locale' );
+        $attachment_prefix      = Settings::get( 'GI_ATTACHMENT_PREFIX' );
+        $attachment_language    = Api::get_prop( $this->i18n, 'locale' );
 
         foreach ( $this->attachments as &$attachment ) {
+
             $attachment_id  = Api::get_prop( $attachment, 'id' );
             $attachment_src = Api::get_prop( $attachment, 'src' );
 
@@ -512,16 +518,11 @@ class Post {
             // Check if attachment doesn't exists, and upload it.
             if ( ! $attachment_post_id = Api::get_attachment_post_id_by_attachment_id( $attachment_id ) ) {
                 // Upload the image.
-                $src = \media_sideload_image( $attachment_src, $this->post_id, '', 'src' );
+                $attachment_post_id = \media_sideload_image( $attachment_src, $this->post_id, '', 'id' );
 
                 // Something went wrong.
-                if ( is_wp_error( $src ) ) {
+                if ( is_wp_error( $attachment_post_id ) ) {
                     $this->set_error( 'attachment', $name, __( 'An error occurred uploading the file.', 'geniem_importer' ) );
-                }
-
-                if ( gettype( $src ) === 'string' ) {
-                    // Get image post id.
-                    $attachment_post_id = attachment_url_to_postid( $src );
                 }
 
                 if ( $attachment_post_id ) {
@@ -529,58 +530,76 @@ class Post {
                     // @todo set meta for all?
                     update_post_meta( $attachment_post_id, $attachment_prefix . $attachment_id, $attachment_id );
                     update_post_meta( $attachment_post_id, rtrim( $attachment_prefix, '_' ), $attachment_id );
+
                     // Polylang mananages languages.
                     // @todo, I think this is set automatically
                     if ( Polylang::pll() ) {
-                        $attachment_language = Api::get_prop( $this->pll, 'locale' );
+                        $attachment_language = Api::get_prop( $this->i18n, 'locale' );
                         if ( $attachment_language ) {
                             Polylang::set_attachment_language( $attachment_post_id, $attachment_id, $attachment_language );
                         }
                     }
-                }
-            }
+                } // End if().
+            } // End if().
 
             if ( $attachment_post_id ) {
+
+                // Get attachment translations.
                 if ( Polylang::pll() ) {
                     $attachment_post_id = Polylang::get_attachment_by_language( $attachment_post_id, $attachment_language );
                 }
 
                 // Update attachment info.
-                wp_update_post( [
+                $attachment_args = [
                     'ID'           => $attachment_post_id,
                     'post_title'   => Api::get_prop( $attachment, 'title' ),
                     'post_content' => Api::get_prop( $attachment, 'description' ),
                     'post_excerpt' => Api::get_prop( $attachment, 'caption' ),
-                ] );
+                ];
 
+                wp_update_post( $attachment_args );
+
+                // Use caption as an alternative text.
                 $alt_text = Api::get_prop( $attachment, 'caption' );
+
                 if ( $alt_text ) {
                     // Add alt text to image
                     update_post_meta( $attachment_post_id, '_wp_attachment_image_alt', $alt_text );
                 }
+
                 // Set attachment post_id.
                 $this->attachment_ids[ $attachment_prefix . $attachment_id ] = Api::set_prop( $attachment, 'post_id', $attachment_post_id );
-            }
-        }
+            } // End if().
+        } // End foreach().
     }
 
     /**
      * Saves the metadata of the post.
+     *
+     * @return void
      */
     protected function save_meta() {
         if ( is_array( $this->meta ) ) {
-            foreach ( $this->meta as $key => $meta_arr ) {
-                if ( '_thumbnail_id' === $meta_arr['meta_key'] ) {
-                    $attachment_post_id = $this->attachment_ids[ $meta_arr['meta_value'] ] ?? '';
-                    if ( ! empty ( $attachment_post_id ) ) {
-                        $meta_arr['meta_value'] = $attachment_post_id;
-                    } else {
+            foreach ( $this->meta as $key => $value ) {
+
+                // Check if thumbnail
+                if ( $key === '_thumbnail_id' ) {
+                    $attachment_post_id = $this->attachment_ids[ $value ] ?? '';
+
+                    // If not empty set _thumbnail_id
+                    if ( ! empty( $attachment_post_id ) ) {
+                        $value = $attachment_post_id;
+                    }
+                    // Set error and skip
+                    else {
                         $this->set_error( 'meta', $meta_arr, __( 'Attachment not found.', 'geniem_importer' ) );
                         unset( $this->meta[ $key ] );
                         continue;
                     }
                 }
-                update_post_meta( $this->post_id, $meta_arr['meta_key'], $meta_arr['meta_value'] );
+
+                // Update post meta
+                update_post_meta( $this->post_id, $key, $value );
             }
         }
     }
@@ -630,7 +649,7 @@ class Post {
                     case 'taxonomy':
                         $terms = [];
                         foreach ( $acf_arr['value'] as &$term ) {
-                            $term_obj = get_term_by( 'slug', $term['slug'], $term['taxonomy'] );
+                            $term_obj = \get_term_by( 'slug', $term['slug'], $term['taxonomy'] );
                             // If the term does not exist, create it.
                             if ( ! $term_obj ) {
                                 $term_obj = $this->create_new_term( $term );
@@ -647,7 +666,8 @@ class Post {
                         if ( ! empty( $attachment_post_id = $this->attachment_ids[ $acf_arr['value'] ] ) ) {
                             update_field( $acf_arr['key'], $attachment_post_id, $this->post_id );
                         } else {
-                            // @todo fire error
+                            $err = "Image doesn't exists";
+                            $this->set_error( 'acf', 'image_field', $err );
                         }
                         break;
 
@@ -658,37 +678,7 @@ class Post {
                         break;
                 }
             }
-        }
-    }
-
-    /**
-     * Saves the metadata of the post.
-     */
-    protected function save_pll() {
-        if ( is_array( $this->pll ) ) {
-            // Set post locale.
-            \pll_set_post_language( $this->post_id, $this->pll['locale'] );
-            // Check if we need to link the post to its master.
-            if ( ! empty( $master_key = $this->pll['master']['query_key'] ?? null ) ) {
-                // @todo Api check
-                $master_id      = substr( $master_key, strlen( Settings::get( 'GI_ID_PREFIX' ) ) );
-                $master_post_id = Api::get_post_id_by_api_id( $master_id );
-                // Set post locale.
-                if ( $master_post_id ) {
-                    // Get current translation.
-                    $current_translations = pll_get_post_translations( $master_post_id );
-                    // Set up new translations.
-                    $new_translations     = [
-                        'post_id'            => $master_post_id,
-                        $this->pll['locale'] => $this->post_id,
-                    ];
-                    // Add and link translation.
-                    \pll_save_post_translations( wp_parse_args( $new_translations, $current_translations ) );
-                } else {
-                    // @todo master doesn't exist
-                }
-            }
-        }
+        } // End if.
     }
 
     /**
@@ -724,11 +714,14 @@ class Post {
      */
     protected function identify() {
         $id_prefix = Settings::get( 'GI_ID_PREFIX' );
+
         // Remove the trailing '_'.
         $identificator = rtrim( $id_prefix, '_' );
+
         // Set the queryable identificator.
         // Example: meta_key = 'gi_id', meta_value = 12345
         update_post_meta( $this->post_id, $identificator, $this->gi_id );
+
         // Set the indexed indentificator.
         // Example: meta_key = 'gi_id_12345', meta_value = 12345
         update_post_meta( $this->post_id, $id_prefix . $this->gi_id, $this->gi_id );
@@ -738,8 +731,9 @@ class Post {
      * Checks whether the current post is valid.
      */
     protected function validate() {
-        if ( ! empty ( $this->get_errors() ) ) {
+        if ( ! empty( $this->get_errors() ) ) {
             // Store the invalid data for later access.
+            // @todo set invalid_post to settings class, add timestamp after gi_id Y-m-d
             $key        = Settings::get( 'GI_TRANSIENT_KEY' ) . 'invalid_post_' . $this->gi_id;
             $expiration = Settings::get( 'GI_TRANSIENT_EXPIRATION' );
             set_transient( $key, get_object_vars( $this ), $expiration );
@@ -761,21 +755,32 @@ class Post {
         return apply_filters( 'geniem_importer_pre_post_save', $post_data, $this->gi_id );
     }
 
+    /**
+     * This function creates a filter for the 'wp_insert_posts_data'
+     * Use this to customize the imported data after any database actions.
+     * 
+     * @param [type] $postarr
+     * @return void
+     */
     public function after_post_save( $postarr ) {
         return apply_filters( 'geniem_importer_after_post_save', $postarr, $this->gi_id );
     }
 
     /**
      * Sets a single error message or a full error array depending on the $key value.
+     * @todo change this to $post to use it outside class
      *
      * @param string       $scope The error scope.
      * @param string|array $data  The key or the error array.
      * @param string       $error The error message.
      */
     protected function set_error( $scope = '', $data = '', $error = '' ) {
+
         $this->errors[ $scope ] = $this->errors[ $scope ] ?? [];
+
         $gi_id   = $this->gi_id ?? '-';
         $message = '(' . Settings::get( 'GI_ID_PREFIX' ) . $gi_id . ') ' . $error;
+
         $this->errors[ $scope ][] = [
             'message' => $message,
             'data'    => $data,
