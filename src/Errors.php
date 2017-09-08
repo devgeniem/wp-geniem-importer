@@ -35,7 +35,7 @@ class Errors {
      * @param string|array $data  The key or the error array.
      * @param string       $error The error message.
      */
-    protected static function set( $post, $scope = '', $data = '', $error = '' ) {
+    public static function set( $post, $scope = '', $data = '', $error = '' ) {
 
         // Get needed variables
         $gi_id = $post->get_gi_id();
