@@ -28,11 +28,12 @@ class Importer_Plugin {
 
     /**
      * Holds the general plugin data.
+     * @todo : Get version dynamically from the plugin header information.
      *
      * @var array
      */
     protected static $plugin_data = [
-        'VERSION' => '0.1.0',
+        'VERSION' => '0.2.0',
     ];
 
     /**
