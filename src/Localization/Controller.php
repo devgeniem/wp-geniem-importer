@@ -20,14 +20,11 @@ defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 class Controller {
 
     /**
-     * Undocumented function
-     * Saves plugin with your installed WordPress translation plugin
+     * Saves plugin with your installed WordPress translation plugin.
      * The actual locale saving is happening in Plugin specific classes
      * Geniem\Importer\Localization\Polylang and Geniem\Importer\Localization\WPML
      *
-     * @param int $post_id
-     * @param string $gi_id
-     * @param array $i18n
+     * @param object $post      Instance of the Post class.
      * @return void
      */
     public static function save_locale( $post ) {
@@ -40,17 +37,17 @@ class Controller {
         // Check which translation plugin should be used
         $activated_i18n_plugin = self::get_activated_i18n_plugin( $post );
 
-        // If no translation plugin was detected
+        // If no translation plugin was detected.
         if ( $activated_i18n_plugin === false ) {
             return false;
         }
 
-        // If Polylang is activated use Polylang
+        // If Polylang is activated use Polylang.
         if ( $activated_i18n_plugin === 'polylang' ) {
             Polylang::save_pll_locale( $post );
         }
 
-        // If WPML is activated use WPML
+        // If WPML is activated use WPML.
         if ( $activated_i18n_plugin === 'wpml' ) {
             // @todo : handle WPML translations in geniem-importer/Localization/WPML.php
             // WPML::save_wpml_locale( $post_id, $i18n );
@@ -69,16 +66,16 @@ class Controller {
         // Checks if Polylang is installed and activated
         $polylang_activated = function_exists( 'PLL' );
 
+        // If Polylang is activated use Polylang
+        if ( $polylang_activated === true ) {
+            return 'polylang';
+        }
+
         /**
          * Checks if WPML is active
          * Polylang includes WPML api and WPML functions so we need to be more specific with WMPL.
          */
         $wpml_activated = defined( 'ICL_SITEPRESS_VERSION' );
-
-        // If Polylang is activated use Polylang
-        if ( $polylang_activated === true ) {
-            return 'polylang';
-        }
 
         // If WPML is activated use WPML
         if ( $wpml_activated === true ) {

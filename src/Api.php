@@ -30,7 +30,7 @@ class Api {
         // Fetch results from the postmeta table.
         $results = $wpdb->get_col( $prepared );
 
-        if ( count( $results ) ) {
+        if ( ! empty( $results ) ) {
             return (int) $results[0];
         }
 
@@ -55,7 +55,7 @@ class Api {
         // Fetch results from the postmeta table.
         $results = $wpdb->get_col( $prepared );
 
-        if ( count( $results ) ) {
+        if ( ! empty( $results ) ) {
             return (int) $results[0];
         }
 
@@ -79,11 +79,11 @@ class Api {
     }
 
     /**
-     * [delete_post description]
+     * Delete a post by id
      *
-     * @param  [type]  $id           [description]
-     * @param  boolean $force_delete Set as false, if you wish to trash instead of deleting.
-     * @return mixed                 The post object (if it was deleted or moved to the trash successfully) or false (failure). If the post was moved to the trash, the post object represents its new state; if it was deleted, the post object represents its state before deletion.
+     * @param  int  $id                 WordPress post_id
+     * @param  boolean $force_delete    Set as false, if you wish to trash instead of deleting.
+     * @return mixed                    The post object (if it was deleted or moved to the trash successfully) or false (failure). If the post was moved to the trash, the post object represents its new state; if it was deleted, the post object represents its state before deletion.
      */
     public static function delete_post( $id, $force_delete = true ) {
         $post_id = self::get_post_id_by_api_id( $id );
@@ -108,7 +108,7 @@ class Api {
         $query         = "SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key = '%s'";
         $results       = $wpdb->get_col( $wpdb->prepare( $query, $identificator ) );
 
-        if ( count( $results ) ) {
+        if ( ! empty( $results ) ) {
             foreach ( $results as $post_id ) {
                 wp_delete_post( $post_id, $force_delete );
             }

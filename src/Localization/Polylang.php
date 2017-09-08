@@ -55,23 +55,20 @@ class Polylang {
              */
             self::$languages = pll_languages_list();
 
-            // media index might not be set by default
+            // Media index might not be set by default.
             if ( isset( $polylang->options['media'] ) ) {
 
                 // Check if media duplication is on.
                 if ( $polylang->model->options['media_support'] && $polylang->options['media']['duplicate'] ?? 0 ) {
 
-                    // Needed for PLL_Admin_Advanced_Media
+                    // Needed for PLL_Admin_Advanced_Media.
                     $polylang->filters_media     = new \PLL_Admin_Filters_Media( $polylang );
 
-                    // Acticates media duplication
+                    // Activates media duplication.
                     $polylang->gi_advanced_media = new \PLL_Admin_Advanced_Media( $polylang );
                     // Hook into media duplication so we can add attachment_id meta.
                     # add_action( 'pll_translate_media', array( __CLASS__, 'get_attachment_post_ids' ), 11, 3 );
                 }
-            }
-            else {
-                // Media is not set.
             }
 
             self::$polylang = $polylang;
@@ -94,11 +91,14 @@ class Polylang {
         return self::$languages;
     }
 
-    /**
-     * [get description]
-     * @param  [type] $key [description]
-     * @return [type]      [description]
-     */
+     /**
+      * Set attachment language by post_id
+      * @todo : Why there is an attachment id?
+      *
+      * @param int $attachment_post_id
+      * @param int $attachment_id
+      * @param string $language
+      */
     public static function set_attachment_language( $attachment_post_id, $attachment_id, $language ) {
         if ( $language ) {
             pll_set_post_language( $attachment_post_id, $language );
@@ -106,9 +106,10 @@ class Polylang {
     }
 
     /**
-     * [get description]
-     * @param  [type] $key [description]
-     * @return [type]      [description]
+     * Get attachment by attachment id and language
+     *
+     * @param int $attachment_post_id
+     * @param string $language
      */
     public static function get_attachment_by_language( $attachment_post_id, $language ) {
         if ( isset( self::$polylang->filters_media ) ) {
@@ -137,33 +138,36 @@ class Polylang {
             // Set post locale. 
             \pll_set_post_language( $post_id, $i18n['locale'] );
 
-            // Check if we need to link the post to its master.
-            $master_key = $i18n['master']['query_key'] ?? null;
+            // Run only if master exists
+            if ( isset( $i18n['master'] ) ) {
 
-            // If master key exists
-            if ( ! empty( $master_key ) ) {
+                // Check if we need to link the post to its master.
+                $master_key = $i18n['master']['query_key'] ?? null;
 
-                // @todo Api check - T: What it this?
-                // Get master post id for translation linking
-                $gi_id_prefix   = Settings::get( 'GI_ID_PREFIX' );
-                $master_id      = substr( $master_key, strlen( $gi_id_prefix ) );
-                $master_post_id = Api::get_post_id_by_api_id( $master_id );
+                // If master key exists
+                if ( ! empty( $master_key ) ) {
 
-                // Set link for translations.
-                if ( $master_post_id ) {
+                    // Get master post id for translation linking
+                    $gi_id_prefix   = Settings::get( 'GI_ID_PREFIX' );
+                    $master_id      = substr( $master_key, strlen( $gi_id_prefix ) );
+                    $master_post_id = Api::get_post_id_by_api_id( $master_id );
 
-                        // Get current translation.
-                        $current_translations = \pll_get_post_translations( $master_post_id );
+                    // Set link for translations.
+                    if ( $master_post_id ) {
 
-                        // Set up new translations.
-                        $new_translations = [
-                            'post_id'         => $master_post_id,
-                            $i18n['locale']   => $post_id,
-                        ];
-                        $parsed_args = \wp_parse_args( $new_translations, $current_translations );
+                            // Get current translation.
+                            $current_translations = \pll_get_post_translations( $master_post_id );
 
-                        // Add and link translation.
-                        \pll_save_post_translations( $parsed_args );
+                            // Set up new translations.
+                            $new_translations = [
+                                'post_id'         => $master_post_id,
+                                $i18n['locale']   => $post_id,
+                            ];
+                            $parsed_args = \wp_parse_args( $new_translations, $current_translations );
+
+                            // Add and link translation.
+                            \pll_save_post_translations( $parsed_args );
+                    } // End if().
                 } // End if().
             } // End if().
         } else {
