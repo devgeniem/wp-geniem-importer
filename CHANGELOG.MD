@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Moved Localization to own folder
 - Error messages for localization
 - Better comments
+- Errors:set changed to public from private
 
 ### Removed 
 
