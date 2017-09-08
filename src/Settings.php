@@ -31,6 +31,7 @@ class Settings {
         self::$settings = $plugin_data;
 
         self::set( 'GI_ID_PREFIX', 'gi_id_' );
+        self::set( 'GI_ATTACHMENT_PREFIX', 'gi_attachment_' );
         self::set( 'GI_LOG_ERRORS', false );
         self::set( 'GI_TRANSIENT_KEY', 'gi_' );
         self::set( 'GI_TRANSIENT_EXPIRATION', HOUR_IN_SECONDS );
@@ -46,7 +47,7 @@ class Settings {
     public static function get( $key ) {
         $key = strtoupper( $key );
         if ( isset( self::$settings[ $key ] ) ) {
-            self::$settings[ $key ];
+            return self::$settings[ $key ];
         } else {
             return null;
         }
