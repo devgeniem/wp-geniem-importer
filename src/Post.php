@@ -586,24 +586,6 @@ class Post {
      */
     protected function insert_attachment_from_url( $url, $post_id = null ) {
 
-       /*
-        // Include WP_Http request if class doesn't exist
-        if( ! class_exists( 'WP_Http' ) ) {
-            include_once( ABSPATH . WPINC . '/class-http.php' );
-        }
-
-        // Http request to the given url
-        $http               = new \WP_Http();
-        $https_response     = $http->request( $url );
-
-        // If response isn't OK 200 return false
-        if ( $https_response['response']['code'] != 200 ) {
-            return false;
-        }
-
-        // wp_upload_bits variables
-        $wub_name = basename( $url ); */
-
         // Get file from url
         $http_object    = wp_remote_get( $url );
 
