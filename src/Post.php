@@ -510,17 +510,19 @@ class Post {
 
         foreach ( $this->attachments as &$attachment ) {
 
-            $attachment_id  = Api::get_prop( $attachment, 'id' );
-            $attachment_src = Api::get_prop( $attachment, 'src' );
+            $attachment_id      = Api::get_prop( $attachment, 'id' );
+            $attachment_src     = Api::get_prop( $attachment, 'src' );
+            $attachment_post_id = Api::get_attachment_post_id_by_attachment_id( $attachment_id );
 
             if ( empty( $attachment_src ) || empty( $attachment_id ) ) {
                 continue;
             }
 
             // Check if attachment doesn't exists, and upload it.
-            if ( ! $attachment_post_id = Api::get_attachment_post_id_by_attachment_id( $attachment_id ) ) {
-                // Upload the image.
-                $attachment_post_id = \media_sideload_image( $attachment_src, $this->post_id, '', 'id' );
+            if ( ! $attachment_post_id ) {
+
+                // Insert upload attachment from url
+                $attachment_post_id = $this->insert_attachment_from_url( $attachment_src, $this->post_id );
 
                 // Something went wrong.
                 if ( is_wp_error( $attachment_post_id ) ) {
@@ -573,6 +575,61 @@ class Post {
                 $this->attachment_ids[ $attachment_prefix . $attachment_id ] = Api::set_prop( $attachment, 'post_id', $attachment_post_id );
             } // End if().
         } // End foreach().
+    }
+
+    /**
+     * Insert an attachment from an URL address.
+     *
+     * @param  string $url
+     * @param  int    $post_id
+     * @return int    Attachment ID
+     */
+    protected function insert_attachment_from_url( $url, $post_id = null ) {
+
+        // Get file from url
+        $http_object    = wp_remote_get( $url );
+
+        if ( $http_object['response']['code'] != 200 ) {
+            return false;
+        }
+
+        $wub_name       = basename( $url );
+        $file_content   = $http_object['body'];
+
+        // Upload file to uploads.
+        $upload = wp_upload_bits( $wub_name, null, $file_content );
+
+        // If error occured during upload return false.
+        if ( ! empty( $upload['error'] ) ) {
+            return false;
+        }
+
+        // File variables
+        $file_path          = $upload['file'];
+        $file_name          = basename( $file_path );
+        $file_type          = wp_check_filetype( $file_name, null );
+        $attachment_title   = sanitize_file_name( pathinfo( $file_name, PATHINFO_FILENAME ) );
+        $wp_upload_dir      = wp_upload_dir();
+
+        // wp_insert_attachment post info
+        $post_info = array(
+            'guid'              => $wp_upload_dir['url'] . '/' . $file_name,
+            'post_mime_type'    => $file_type['type'],
+            'post_title'        => $attachment_title,
+            'post_content'      => '',
+            'post_status'       => 'inherit',
+        );
+
+        // Insert attachment to the database.
+        $attachment_id      = wp_insert_attachment( $post_info, $file_path, $post_id, true );
+
+        // Generate post thumbnail attachment meta data.
+        $attachment_data    = wp_generate_attachment_metadata( $attachment_id, $file_path );
+
+        // Assign metadata to an attachment.
+        wp_update_attachment_metadata( $attachment_id, $attachment_data );
+
+        return $attachment_id;
     }
 
     /**
@@ -739,7 +796,7 @@ class Post {
 
     /**
      * Checks whether the current post is valid.
-     * 
+     *
      * @throws PostException
      */
     protected function validate() {
