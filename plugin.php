@@ -33,7 +33,7 @@ class Importer_Plugin {
      * @var array
      */
     protected static $plugin_data = [
-        'VERSION' => '0.2.0',
+        'VERSION' => '0.2.1',
     ];
 
     /**
