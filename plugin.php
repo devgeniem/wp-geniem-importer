@@ -3,7 +3,7 @@
  * Plugin Name: Geniem Importer
  * Plugin URI:  https://github.com/devgeniem/geniem-importer
  * Description: An object-oriented and developer friendly WordPress importer.
- * Version:     0.2.1
+ * Version:     0.2.2
  * Author:      Geniem
  * Author URI:  http://www.geniem.fi/
  * License:     GPL3

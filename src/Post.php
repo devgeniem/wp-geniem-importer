@@ -530,15 +530,22 @@ class Post {
                 }
 
                 if ( $attachment_post_id ) {
-                    // Set attachment id meta, for later use.
-                    // @todo set meta for all?
+                    // Set indexed meta for fast queries.
+                    // Depending on the attachment prefix this would look something like:
+                    // meta_key             | meta_value
+                    // gi_attachment_{1234} | 1234
                     update_post_meta( $attachment_post_id, $attachment_prefix . $attachment_id, $attachment_id );
+                    // Set the generally queryable id.
+                    // Depending on the attachment prefix this would look something like:
+                    // meta_key       | meta_value
+                    // gi_attachment  | 1234
                     update_post_meta( $attachment_post_id, rtrim( $attachment_prefix, '_' ), $attachment_id );
 
                     // Polylang mananages languages.
                     // @todo, I think this is set automatically
                     if ( Polylang::pll() ) {
                         $attachment_language = Api::get_prop( $this->i18n, 'locale' );
+
                         if ( $attachment_language ) {
                             Polylang::set_attachment_language( $attachment_post_id, $attachment_id, $attachment_language );
                         }
@@ -546,6 +553,7 @@ class Post {
                 } // End if().
             } // End if().
 
+            // Update attachment meta and handle translations
             if ( $attachment_post_id ) {
 
                 // Get attachment translations.
@@ -561,13 +569,14 @@ class Post {
                     'post_excerpt' => Api::get_prop( $attachment, 'caption' ),
                 ];
 
+                // Save the attachement post object data
                 wp_update_post( $attachment_args );
 
                 // Use caption as an alternative text.
                 $alt_text = Api::get_prop( $attachment, 'caption' );
 
                 if ( $alt_text ) {
-                    // Add alt text to image
+                    // Save image alt text into attachment post meta
                     update_post_meta( $attachment_post_id, '_wp_attachment_image_alt', $alt_text );
                 }
 
@@ -589,7 +598,7 @@ class Post {
         // Get file from url
         $http_object    = wp_remote_get( $url );
 
-        if ( $http_object['response']['code'] != 200 ) {
+        if ( $http_object['response']['code'] !== 200 ) {
             return false;
         }
 
@@ -615,8 +624,9 @@ class Post {
         $post_info = array(
             'guid'              => $wp_upload_dir['url'] . '/' . $file_name,
             'post_mime_type'    => $file_type['type'],
-            'post_title'        => $attachment_title,
-            'post_content'      => '',
+            'post_title'        => Api::get_prop( $attachment, 'title' ),
+            'post_content'      => Api::get_prop( $attachment, 'description' ),
+            'post_excerpt'      => Api::get_prop( $attachment, 'caption' ),
             'post_status'       => 'inherit',
         );
 
@@ -641,15 +651,16 @@ class Post {
         if ( is_array( $this->meta ) ) {
             foreach ( $this->meta as $key => $value ) {
 
-                // Check if thumbnail
+                // Check if post has a attachment thumbnail
                 if ( $key === '_thumbnail_id' ) {
+                    // If attachment id exists
                     $attachment_post_id = $this->attachment_ids[ $value ] ?? '';
 
                     // If not empty set _thumbnail_id
                     if ( ! empty( $attachment_post_id ) ) {
                         $value = $attachment_post_id;
                     }
-                    // Set error and skip
+                    // Set error attachment didn't exists
                     else {
                         Errors::set( $this, 'meta', $meta_arr, __( 'Attachment not found.', 'geniem_importer' ) );
                         unset( $this->meta[ $key ] );
