@@ -522,7 +522,7 @@ class Post {
             if ( ! $attachment_post_id ) {
 
                 // Insert upload attachment from url
-                $attachment_post_id = $this->insert_attachment_from_url( $attachment_src, $this->post_id );
+                $attachment_post_id = $this->insert_attachment_from_url( $attachment_src, $attachment, $this->post_id );
 
                 // Something went wrong.
                 if ( is_wp_error( $attachment_post_id ) ) {
@@ -554,6 +554,7 @@ class Post {
             } // End if().
 
             // Update attachment meta and handle translations
+            // @todo translate
             if ( $attachment_post_id ) {
 
                 // Get attachment translations.
@@ -593,16 +594,16 @@ class Post {
      * @param  int    $post_id
      * @return int    Attachment ID
      */
-    protected function insert_attachment_from_url( $url, $post_id = null ) {
+    protected function insert_attachment_from_url( $attachment_src, $attachment, $post_id ) {
 
         // Get file from url
-        $http_object    = wp_remote_get( $url );
+        $http_object    = wp_remote_get( $attachment_src );
 
         if ( $http_object['response']['code'] !== 200 ) {
             return false;
         }
 
-        $wub_name       = basename( $url );
+        $wub_name       = basename( $attachment_src );
         $file_content   = $http_object['body'];
 
         // Upload file to uploads.
