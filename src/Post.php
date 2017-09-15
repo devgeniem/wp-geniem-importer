@@ -554,7 +554,8 @@ class Post {
             } // End if().
 
             // Update attachment meta and handle translations
-            // @todo translate
+            // @todo check the translation flow and
+            // move attachment translation related stuff to Polylang/WPML classes
             if ( $attachment_post_id ) {
 
                 // Get attachment translations.
@@ -590,9 +591,10 @@ class Post {
     /**
      * Insert an attachment from an URL address.
      *
-     * @param  string $url
-     * @param  int    $post_id
-     * @return int    Attachment ID
+     * @param [type] $attachment_src    Source file url.
+     * @param [type] $attachment        Post class instances attachment.
+     * @param [type] $post_id           Attachments may be associated with a parent post or page. Specify the parent's post ID, or 0 if unattached.
+     * @return void
      */
     protected function insert_attachment_from_url( $attachment_src, $attachment, $post_id ) {
 
@@ -661,7 +663,7 @@ class Post {
                     if ( ! empty( $attachment_post_id ) ) {
                         $value = $attachment_post_id;
                     }
-                    // Set error attachment didn't exists
+                    // Set error: attachment did not exist.
                     else {
                         Errors::set( $this, 'meta', $meta_arr, __( 'Attachment not found.', 'geniem_importer' ) );
                         unset( $this->meta[ $key ] );
