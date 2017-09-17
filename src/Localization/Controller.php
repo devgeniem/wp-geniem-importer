@@ -61,7 +61,7 @@ class Controller {
      * @param string $gi_id The current importer id.
      * @return string/boolean
      */
-    public static function get_activated_i18n_plugin( $post ) {
+    public static function get_activated_i18n_plugin( &$post ) {
 
         // Checks if Polylang is installed and activated
         $polylang_activated = function_exists( 'PLL' );
@@ -84,10 +84,10 @@ class Controller {
 
         // If Polylang or wpml is not active leave an error message for debugging
         if ( $polylang_activated === false && $wpml_activated === false ) {
-            return false;
             // Show an error if translation engines aren't activated and user is willing to translate
             $err = __( 'Error, translation plugin doesn\'t seem to be activated. Please install and activate your desired translation plugin to start translations.', 'geniem-importer' );
-            Errors::set( $post, 'i18n', '', $err );
+            $post->set_error( $post, 'i18n', '', $err );
+            return false;
         }
     }
 

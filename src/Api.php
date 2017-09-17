@@ -116,12 +116,45 @@ class Api {
     }
 
     /**
-     * Get property
+     * Create new term.
      *
-     * @param array $item
-     * @param string $key
-     * @param string $default
-     * @return void
+     * @param  array $term Term data.
+     * @param  Post  $post The current post instance.
+     *
+     * @return object An array containing the `term_id` and `term_taxonomy_id`,
+     *                        WP_Error otherwise.
+     */
+    public static function create_new_term( $term, &$post ) {
+        $taxonomy = $term['taxonomy'];
+        $name     = $term['name'];
+        $slug     = $term['slug'];
+        // There might be a parent set.
+        $parent   = isset( $term['parent'] ) ? get_term_by( 'slug', $term['parent'], $taxonomy ) : false;
+        // Insert the new term.
+        $result   = wp_insert_term( $name, $taxonomy, [
+            'slug'        => $slug,
+            'description' => isset( $term['description'] ) ? $term['description'] : '',
+            'parent'      => $parent ? $parent->term_id : 0,
+        ] );
+        // Something went wrong.
+        if ( is_wp_error( $result ) ) {
+            // @codingStandardsIgnoreStart
+            $post->set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
+            // @codingStandardsIgnoreEnd
+        }
+
+        return (object) $result;
+    }
+
+    /**
+     * A helper function for getting a property
+     * from an object or an associative array.
+     *
+     * @param array  $item    An object or an associative array.
+     * @param string $key     The item key we are trying to get.
+     * @param string $default A default value to be returned if the item was not found.
+     *
+     * @return mixed
      */
     public static function get_prop( $item = [], $key = '', $default = '' ) {
         if ( is_array( $item ) && isset( $item[ $key ] ) ) {
@@ -134,19 +167,23 @@ class Api {
     }
 
     /**
-     * Set property
+     * A helper function for setting a property
+     * into an object or an associative array.
      *
-     * @param array $item
-     * @param string $key
-     * @param string $value
-     * @return void
+     * @param array  $item  An object or an associative array as a reference.
+     * @param string $key   The item key we are trying to get.
+     * @param string $value A default value to be returned if the item was not found.
+     *
+     * @return mixed
      */
-    public static function set_prop( $item = [], $key = '', $value = '' ) {
+    public static function set_prop( &$item = [], $key = '', $value = '' ) {
+
         if ( is_array( $item ) ) {
-            $item[ $key ]   = $value;
+            $item[ $key ] = $value;
         } elseif ( is_object( $item ) ) {
             $item->{ $key } = $value;
         }
+
         return $value;
     }
 

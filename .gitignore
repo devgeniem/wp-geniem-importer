@@ -7,3 +7,6 @@ node_modules
 
 # Sass cache directory
 sass_cache
+
+# A possible vendor directory
+vendor/

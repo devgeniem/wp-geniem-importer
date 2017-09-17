@@ -7,6 +7,7 @@ namespace Geniem\Importer\Localization;
 
 // Classes
 use Geniem\Importer\Api as Api;
+use Geniem\Importer\Post;
 use Geniem\Importer\Settings as Settings;
 
 
@@ -26,9 +27,9 @@ class Polylang {
     protected static $polylang = null;
 
     /**
-     * Holds polylang.
+     * Holds polylang language codes.
      *
-     * @var object|null
+     * @var array
      */
     protected static $languages = [];
 
@@ -77,6 +78,7 @@ class Polylang {
 
     /**
      * Returns the polylang object.
+     *
      * @return object|null Polylang object.
      */
     public static function pll() {
@@ -85,7 +87,8 @@ class Polylang {
 
     /**
      * Returns the polylang language list of language codes.
-     * @return array Polylang language list.
+     *
+     * @return array
      */
     public static function language_list() {
         return self::$languages;
@@ -93,13 +96,11 @@ class Polylang {
 
      /**
       * Set attachment language by post_id
-      * @todo : Why there is an attachment id?
       *
-      * @param int $attachment_post_id
-      * @param int $attachment_id
-      * @param string $language
+      * @param int    $attachment_post_id Attachment wp id.
+      * @param string $language The PLL language code.
       */
-    public static function set_attachment_language( $attachment_post_id, $attachment_id, $language ) {
+    public static function set_attachment_language( $attachment_post_id, $language ) {
         if ( $language ) {
             pll_set_post_language( $attachment_post_id, $language );
         }
@@ -108,8 +109,10 @@ class Polylang {
     /**
      * Get attachment by attachment id and language
      *
-     * @param int $attachment_post_id
-     * @param string $language
+     * @param int    $attachment_post_id Attachment wp id.
+     * @param string $language           The attachment locale.
+     *
+     * @return integer
      */
     public static function get_attachment_by_language( $attachment_post_id, $language ) {
         if ( isset( self::$polylang->filters_media ) ) {
@@ -122,10 +125,10 @@ class Polylang {
     /**
      * Save Polylang locale.
      *
-     * @param Geniem\Importer\Post $post The current importer post object.
+     * @param Post $post The current importer post object.
      * @return void
      */
-    public static function save_pll_locale( $post ) {
+    public static function save_pll_locale( &$post ) {
 
         // Get needed variables
         $post_id    = $post->get_post_id();
@@ -135,7 +138,7 @@ class Polylang {
         // If pll information is in wrong format
         if ( is_array( $i18n ) ) {
 
-            // Set post locale. 
+            // Set post locale.
             \pll_set_post_language( $post_id, $i18n['locale'] );
 
             // Run only if master exists
@@ -171,8 +174,11 @@ class Polylang {
                 } // End if().
             } // End if().
         } else {
-            // @todo show an error: Post doesn't have pll information in right format.
-
+            $post->set_error(
+                'pll',
+                $i18n,
+                __( 'Post doesn\'t have pll information in right format.', 'geniem-importer' )
+            );
         } // End if().
     }
 }

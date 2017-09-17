@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- Code documementation updates and fixes.
+- All plugin data including the plugin version is loaded automatically from the plugin file comments and stored into plugin settings.
+- Errors are back under the Post class. Other classes may access the errors via an object reference of the Post class.
+
+### Added
+
+- If `_thumbnail_id` is trying to be saved before attachments are saved, an error is produced and the meta key-value pair is not saved.
+- A custom database table that stores all the imports made.
+- If errors are found, revert the current post to the last successful import.
+
 ## [0.2.3] - 2017-09-12
 
 ### Changed
@@ -26,7 +40,3 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Error messages for localization
 - Better comments
 - Errors:set changed to public from private
-
-### Removed 
-
-- 
