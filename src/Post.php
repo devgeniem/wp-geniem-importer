@@ -8,7 +8,6 @@ namespace Geniem\Importer;
 use Geniem\Importer\Exception\PostException as PostException;
 use Geniem\Importer\Localization\Polylang as Polylang;
 use WP_Post;
-use WP_Error;
 
 defined( 'ABSPATH' ) || die( 'No script kiddies please!' );
 
@@ -99,7 +98,7 @@ class Post {
      *
      * @var bool
      */
-    protected $rollback = false;
+    protected $rollback_mode = false;
 
     /**
      * Get all save functions that have been run.
@@ -234,6 +233,11 @@ class Post {
             if ( $this->post_id ) {
                 // Fetch the existing WP post object.
                 $this->post = get_post( $this->post_id );
+                // Unset the time values to ensure updates.
+                unset( $this->post->post_date );
+                unset( $this->post->post_date_gmt );
+                unset( $this->post->post_modified );
+                unset( $this->post->post_modified_gmt );
             }
         }
     }
@@ -244,36 +248,31 @@ class Post {
      * @param object $raw_post An object following the plugin specification.
      */
     public function set_data( $raw_post ) {
-        $this->set_post( (object) [
-            'post_type'    => $raw_post['post_type'] ?? 'post',
-            'post_title'   => $raw_post['post_title'] ?? '',
-            'post_content' => $raw_post['post_content'] ?? '',
-            'post_excerpt' => $raw_post['post_excerpt'] ?? '',
-        ] );
+        $this->set_post( $raw_post->post );
 
         // Attachments
-        if ( isset( $raw_post['attachments'] ) && is_array( $raw_post['attachments'] ) ) {
-            $this->set_attachments( $raw_post['attachments'] );
+        if ( isset( $raw_post->attachments ) && is_array( $raw_post->attachments ) ) {
+            $this->set_attachments( $raw_post->attachments );
         }
 
         // Post meta
-        if ( isset( $raw_post['meta'] ) ) {
-            $this->set_meta( $raw_post['meta'] );
+        if ( isset( $raw_post->meta ) ) {
+            $this->set_meta( $raw_post->meta );
         }
 
         // Taxonomies
-        if ( isset( $raw_post['taxonomies'] ) && is_array( $raw_post['taxonomies'] ) ) {
-            $this->set_taxonomies( $raw_post['taxonomies'] );
+        if ( isset( $raw_post->taxonomies ) && is_array( $raw_post->taxonomies ) ) {
+            $this->set_taxonomies( $raw_post->taxonomies );
         }
 
         // Advanced custom fields
-        if ( isset( $raw_post['acf'] ) && is_array( $raw_post['acf'] ) ) {
-            $this->set_acf( $raw_post['acf'] );
+        if ( isset( $raw_post->acf ) && is_array( $raw_post->acf ) ) {
+            $this->set_acf( $raw_post->acf );
         }
 
         // If post object has i18n object property set post language
-        if ( isset( $raw_post['i18n'] ) && is_array( $raw_post['i18n'] ) ) {
-            $this->set_i18n( $raw_post['i18n'] );
+        if ( isset( $raw_post->i18n ) && is_array( $raw_post->i18n ) ) {
+            $this->set_i18n( $raw_post->i18n );
         }
     }
 
@@ -409,6 +408,8 @@ class Post {
     }
 
     /**
+     * Validate a mysql datetime value.
+     *
      * @param string $date_string The datetime string.
      * @param string $col_name    The posts table column name.
      * @param string $err_scope   The error scope name.
@@ -600,14 +601,20 @@ class Post {
      * Stores the post instance and all its data into the database.
      *
      * @throws PostException If the post data is not valid.
+     *
+     * @param boolean $force_save Force saving even if errors occurred.
+     *
      * @return int Post id.
      */
-    public function save() {
+    public function save( $force_save = false ) {
 
-        // Check for errors before the saving process.
-        if ( ! $this->rollback ) {
+        // If this is not forced or a rollback save, check for errors before the saving process.
+        if ( ! $force_save || ! $this->rollback_mode ) {
             $valid = $this->validate();
             if ( ! $valid ) {
+                // Log this import.
+                new Log( $this );
+
                 throw new PostException(
                     __( 'The post data was not valid. The import was canceled.', 'geniem-importer' ),
                     0,
@@ -651,27 +658,37 @@ class Post {
             $this->save_acf();
         }
 
-        // Save pll data.
+        // Save localization data.
         if ( ! empty( $this->i18n ) ) {
-            // @todo separate save_pll to own class
             Localization\Controller::save_locale( $this );
         }
 
-        // Check for errors after save process.
-        if ( ! $this->rollback ) {
-            // Log this import.
-            Log::add( $this );
-
+        // If this is not forced or a rollback save, check for errors after save process.
+        if ( ! $force_save || ! $this->rollback_mode ) {
             $valid = $this->validate();
             if ( ! $valid ) {
-                $this->rollback();
+                // Log this import.
+                new Log( $this );
+
+                $rolled_back = $this->rollback();
+
+                // Set the correct error message.
+                $err = $rolled_back ?
+                    // Rollback error message
+                    __( 'An error occurred while saving the import data. Rolled back the last successful import.', 'geniem-importer' ) :
+                    // Default error message
+                    __( 'An error occurred while saving the import data. Set the post status to "draft".', 'geniem-importer' );
+
                 throw new PostException(
-                    __( 'The post data was not valid. The import was canceled.', 'geniem-importer' ),
+                    $err,
                     0,
                     $this->errors
                 );
             }
         }
+
+        // This logs a successful import.
+        new Log( $this );
 
         // Remove the custom filters.
         remove_filter( 'wp_insert_post_data', [ $this, 'pre_post_save' ] );
@@ -681,9 +698,27 @@ class Post {
     }
 
     /**
+     * Delete all data related to a single post.
+     * Note: This keeps the basic post data intact int the posts table.
+     */
+    public function delete_data() {
+
+        // This removes most of data related to a post.
+        Api::delete_post_meta_data( $this->post_id );
+
+        // Delete all term relationships.
+        \wp_delete_object_term_relationships( $this->post_id, \get_taxonomies() );
+
+        // Run custom action for custom data.
+        // Use this if the data is not in the postmeta table.
+        do_action( 'geniem_importer_delete_data', $this->post_id );
+    }
+
+    /**
      * Saves the attachments of the post.
+     * Currently supports images.
      *
-     * @todo currently only accepts images
+     * @todo add support for other media formats too
      */
     protected function save_attachments() {
         // All of the following are required for the media_sideload_image function.
@@ -707,6 +742,9 @@ class Post {
             $attachment_post_id = Api::get_attachment_post_id_by_attachment_id( $attachment_id );
 
             if ( empty( $attachment_src ) || empty( $attachment_id ) ) {
+                // @codingStandardsIgnoreStart
+                $this->set_error( 'attachment', $attachment, __( 'The attachment object has missing parameters.', 'geniem_importer' ) );
+                // @codingStandardsIgnoreEnd
                 continue;
             }
 
@@ -719,7 +757,7 @@ class Post {
                 // Something went wrong.
                 if ( is_wp_error( $attachment_post_id ) ) {
                     // @codingStandardsIgnoreStart
-                    $this->set_error( 'attachment', $name, __( 'An error occurred uploading the file.', 'geniem_importer' ) );
+                    $this->set_error( 'attachment', $attachment, __( 'An error occurred uploading the file.', 'geniem_importer' ) );
                     // @codingStandardsIgnoreEnd
                 }
 
@@ -748,13 +786,14 @@ class Post {
             } // End if().
 
             // Update attachment meta and handle translations
-            // @todo check the translation flow and
-            // move attachment translation related stuff to Polylang/WPML classes
             if ( $attachment_post_id ) {
 
                 // Get attachment translations.
                 if ( Polylang::pll() ) {
-                    $attachment_post_id = Polylang::get_attachment_by_language( $attachment_post_id, $attachment_language );
+                    $attachment_post_id = Polylang::get_attachment_by_language(
+                        $attachment_post_id,
+                        $attachment_language
+                    );
                 }
 
                 // Update attachment info.
@@ -776,8 +815,9 @@ class Post {
                     update_post_meta( $attachment_post_id, '_wp_attachment_image_alt', $alt_text );
                 }
 
-                // Set attachment post_id.
-                $this->attachment_ids[ $attachment_prefix . $attachment_id ] = Api::set_prop( $attachment, 'post_id', $attachment_post_id );
+                // Set the attachment post_id.
+                $this->attachment_ids[ $attachment_prefix . $attachment_id ] =
+                    Api::set_prop( $attachment, 'post_id', $attachment_post_id );
             } // End if().
         } // End foreach().
 
@@ -857,7 +897,7 @@ class Post {
                 if ( $key === '_thumbnail_id' ) {
                     // First check if attachments have been saved.
                     // If not, set an error and skip thumbnail setting.
-                    if ( ! $this->is_saved( 'meta' ) ) {
+                    if ( ! $this->is_saved( 'attachments' ) ) {
                         // @codingStandardsIgnoreStart
                         $err = __( 'Attachments must be saved before saving the thumbnail id for a post. Discarding saving meta for the key "_thumbnail_id".', 'geniem-importer' );
                         // @codingStandardsIgnoreEnd
@@ -901,20 +941,27 @@ class Post {
         if ( is_array( $this->taxonomies ) ) {
             $term_ids_by_tax = [];
             foreach ( $this->taxonomies as &$term ) {
-                $term_obj = get_term_by( 'slug', $term['slug'], $term['taxonomy'] );
+                // Safely get values from the term.
+                $slug     = Api::get_prop( $term, 'slug' );
+                $taxonomy = Api::get_prop( $term, 'taxonomy' );
+
+                // Fetch the term object.
+                $term_obj = get_term_by( 'slug', $slug, $taxonomy );
+
                 // If the term does not exist, create it.
                 if ( ! $term_obj ) {
                     $term_obj = Api::create_new_term( $term, $this );
                     // @todo check for wp error and continue, edit for ACF taxonomies with similar code
                 }
                 // Add term id.
-                if ( isset( $term_ids_by_tax[ $term['taxonomy'] ] ) ) {
-                    $term_ids_by_tax[ $term['taxonomy'] ][] = $term_obj->term_id;
+                if ( isset( $term_ids_by_tax[ $taxonomy ] ) ) {
+                    $term_ids_by_tax[ $taxonomy ][] = $term_obj->term_id;
                 } else {
-                    $term_ids_by_tax[ $term['taxonomy'] ] = [ $term_obj->term_id ];
+                    $term_ids_by_tax[ $taxonomy ] = [ $term_obj->term_id ];
                 }
             }
             foreach ( $term_ids_by_tax as $taxonomy => $terms ) {
+                // Set terms for the post object.
                 wp_set_object_terms( $this->post_id, $terms, $taxonomy );
             }
         }
@@ -933,17 +980,23 @@ class Post {
 
             if ( is_array( $this->acf ) ) {
 
-                foreach ( $this->acf as $acf_arr ) {
-                    // Key must be set.
-                    if ( empty( $acf_arr['key'] ) ) {
+                foreach ( $this->acf as $acf_row ) {
+                    // The key must be set.
+                    if ( empty( Api::get_prop( $acf_row, 'key', '' ) ) ) {
                         continue;
                     }
 
-                    switch ( isset( $acf_arr['type'] ) ? $acf_arr['type'] : 'default' ) {
+                    $type  = Api::get_prop( $acf_row, 'type', 'default' );
+                    $key   = Api::get_prop( $acf_row, 'key', '' );
+                    $value = Api::get_prop( $acf_row, 'value', '' );
+
+                    switch ( $type ) {
                         case 'taxonomy':
                             $terms = [];
-                            foreach ( $acf_arr['value'] as &$term ) {
-                                $term_obj = \get_term_by( 'slug', $term['slug'], $term['taxonomy'] );
+                            foreach ( $value as &$term ) {
+                                $term_slug = Api::get_prop( $term, 'slug' );
+                                $term_taxonomy = Api::get_prop( $term, 'taxonomy' );
+                                $term_obj = \get_term_by( 'slug', $term_slug, $term_taxonomy );
                                 // If the term does not exist, create it.
                                 if ( ! $term_obj ) {
                                     $term_obj = Api::create_new_term( $term, $this );
@@ -951,25 +1004,25 @@ class Post {
                                 $terms[] = (int) $term_obj->term_id;
                             }
                             if ( count( $terms ) ) {
-                                update_field( $acf_arr['key'], $terms, $this->post_id );
+                                update_field( $key, $terms, $this->post_id );
                             }
                             break;
 
                         case 'image':
                             // Check if image exists.
-                            $attachment_post_id = $this->attachment_ids[ $acf_arr['value'] ];
+                            $attachment_post_id = $this->attachment_ids[ $value ];
                             if ( ! empty( $attachment_post_id ) ) {
-                                update_field( $acf_arr['key'], $attachment_post_id, $this->post_id );
+                                update_field( $key, $attachment_post_id, $this->post_id );
                             } else {
-                                $err = "Image doesn't exists";
+                                $err = __( 'Trying to set an image in an ACF field that does not exists.', 'geniem-importer' );
                                 $this->set_error( 'acf', 'image_field', $err );
                             }
                             break;
 
-                        // @todo Test which field type require no extra logic.
+                        // @todo Test which field types require no extra logic.
                         // Currently tested: 'select'
                         default:
-                            update_field( $acf_arr['key'], $acf_arr['value'], $this->post_id );
+                            update_field( $key, $value, $this->post_id );
                             break;
                     }
                 } // End foreach().
@@ -977,43 +1030,12 @@ class Post {
         } // End if().
         else {
             // @codingStandardsIgnoreStart
-            $this->set_error( 'acf', $name, __( 'Advanced Custom Fields is not active! Please install and activate the plugin to save acf meta fields.', 'geniem_importer' ) );
+            $this->set_error( 'acf', $this->acf, __( 'Advanced Custom Fields is not active! Please install and activate the plugin to save acf meta fields.', 'geniem_importer' ) );
             // @codingStandardsIgnoreEnd
         }
 
         // This functions is done.
         $this->set_save_state( 'acf' );
-    }
-
-    /**
-     * Create new term.
-     *
-     * @param  array $term Term data.
-     *
-     * @return array|WP_Error An array containing the `term_id` and `term_taxonomy_id`,
-     *                        WP_Error otherwise.
-     * @todo  make static and move to api
-     */
-    protected function create_new_term( array $term ) {
-        $taxonomy = $term['taxonomy'];
-        $name     = $term['name'];
-        $slug     = $term['slug'];
-        // There might be a parent set.
-        $parent   = isset( $term['parent'] ) ? get_term_by( 'slug', $term['parent'], $taxonomy ) : false;
-        // Insert the new term.
-        $result   = wp_insert_term( $name, $taxonomy, [
-            'slug'        => $slug,
-            'description' => isset( $term['description'] ) ? $term['description'] : '',
-            'parent'      => $parent ? $parent->term_id : 0,
-        ] );
-        // Something went wrong.
-        if ( is_wp_error( $result ) ) {
-            // @codingStandardsIgnoreStart
-            $this->set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
-            // @codingStandardsIgnoreEnd
-        }
-
-        return (object) $result;
     }
 
     /**
@@ -1058,7 +1080,20 @@ class Post {
      * @return mixed
      */
     public function pre_post_save( $post_data ) {
-        // @todo apply dates if set
+        // If this instance has time values, set them here and override WP automation.
+        if ( isset( $this->post->post_date ) &&
+             $this->post->post_date !== '0000-00-00 00:00:00'
+        ) {
+            $post_data['post_date']         = $this->post->post_date;
+            $post_data['post_date_gmt']     = \get_gmt_from_date( $this->post->post_date );
+        }
+        if ( isset( $this->post->post_modified ) &&
+             $this->post->post_modified !== '0000-00-00 00:00:00'
+        ) {
+            $post_data['post_modified']     = $this->post->post_modified;
+            $post_data['post_modified_gmt'] = \get_gmt_from_date( $this->post->post_modified );
+        }
+
         return apply_filters( 'geniem_importer_pre_post_save', $post_data, $this->gi_id );
     }
 
@@ -1075,20 +1110,40 @@ class Post {
 
     /**
      * Restores a post's state back to the last successful import.
+     *
+     * @return boolean Did we roll back or not?
      */
     protected function rollback() {
         // Set the rollback mode.
-        $this->rollback = true;
+        $this->rollback_mode = true;
 
         $last_import = Log::get_last_successful_import( $this->post_id );
 
-        if ( $last_import ) {
-            // @TODO: Delete all data first and rollback correct dates.
-            // @TODO: ^ do this also for pll duplicates.
-            // @TODO: run $this->set_data() and then save
+        if ( $last_import &&
+             Settings::get( 'GENIEM_IMPORTER_ROLLBACK_DISABLE' ) !== true ) {
+            // First delete all imported data.
+            $this->delete_data();
+
+            // Save the previous import again.
+            $data = $last_import->get_data();
+            $this->set_data( $data );
+            $this->save();
+
+            $this->rollback_mode = false;
+
+            return true;
         }
         else {
-            // @TODO: set post status to 'draft'.
+            // Set post status to 'draft' to hide posts containing errors.
+            $update_status = [
+                'ID'          => $this->post_id,
+                'post_status' => 'draft',
+            ];
+
+            // Update the status into the database
+            wp_update_post( $update_status );
+
+            return false;
         }
     }
 

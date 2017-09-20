@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin settings controller.
+ * Polylang translations controller.
  */
 
 namespace Geniem\Importer\Localization;
@@ -10,8 +10,7 @@ use Geniem\Importer\Api as Api;
 use Geniem\Importer\Post;
 use Geniem\Importer\Settings as Settings;
 
-
-defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+defined( 'ABSPATH' ) || die( 'No script kiddies please!' );
 
 /**
  * Class Polylang
@@ -132,22 +131,28 @@ class Polylang {
 
         // Get needed variables
         $post_id    = $post->get_post_id();
-        $gi_id      = $post->get_gi_id();
         $i18n       = $post->get_i18n();
+        $locale     = Api::get_prop( $i18n, 'locale' );
+        $master     = Api::get_prop( $i18n, 'master', false );
 
         // If pll information is in wrong format
         if ( is_array( $i18n ) ) {
 
             // Set post locale.
-            \pll_set_post_language( $post_id, $i18n['locale'] );
+            \pll_set_post_language( $post_id, $locale );
 
             // Run only if master exists
-            if ( isset( $i18n['master'] ) ) {
+            if ( $master ) {
 
                 // Check if we need to link the post to its master.
-                $master_key = $i18n['master']['query_key'] ?? null;
+                $master_key = Api::get_prop( $master, 'query_key', '' );
 
-                // If master key exists
+                if ( empty( $master_key ) ) {
+                    // The 'master' property contains a 'gi_id'.
+                    $master_key = $master;
+                }
+
+                // If a master key is not empty.
                 if ( ! empty( $master_key ) ) {
 
                     // Get master post id for translation linking
@@ -155,7 +160,7 @@ class Polylang {
                     $master_id      = substr( $master_key, strlen( $gi_id_prefix ) );
                     $master_post_id = Api::get_post_id_by_api_id( $master_id );
 
-                    // Set link for translations.
+                    // Set the link for translations if a matching post was found.
                     if ( $master_post_id ) {
 
                             // Get current translation.
@@ -163,8 +168,8 @@ class Polylang {
 
                             // Set up new translations.
                             $new_translations = [
-                                'post_id'         => $master_post_id,
-                                $i18n['locale']   => $post_id,
+                                'post_id' => $master_post_id,
+                                $locale   => $post_id,
                             ];
                             $parsed_args = \wp_parse_args( $new_translations, $current_translations );
 
@@ -177,7 +182,7 @@ class Polylang {
             $post->set_error(
                 'pll',
                 $i18n,
-                __( 'Post doesn\'t have pll information in right format.', 'geniem-importer' )
+                __( 'Post does not have pll information in right format.', 'geniem-importer' )
             );
         } // End if().
     }

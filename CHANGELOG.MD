@@ -11,12 +11,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Code documementation updates and fixes.
 - All plugin data including the plugin version is loaded automatically from the plugin file comments and stored into plugin settings.
 - Errors are back under the Post class. Other classes may access the errors via an object reference of the Post class.
+- The `Polylang` class uses `Api::get_prop()` for `i18n` data handling to prevent errors.
+- Fixed the `master` property handling in the `Polylang` class to match the original specification.
 
 ### Added
 
 - If `_thumbnail_id` is trying to be saved before attachments are saved, an error is produced and the meta key-value pair is not saved.
+- If the Post object contains time information, add them into the post data array in `wp_insert_post_data` hook to save them into the database.
 - A custom database table that stores all the imports made.
-- If errors are found, revert the current post to the last successful import.
+- If errors are found, revert the current post to the last successful import. If it is the first import, set post status as `draft`.
+- Added a `force_save` flag for the `save()` functions. This forces saving even if the importer object has errors.
 
 ## [0.2.3] - 2017-09-12
 

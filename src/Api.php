@@ -38,6 +38,23 @@ class Api {
     }
 
     /**
+     * Deletes all postmeta related to a single post.
+     * Flushes postmeta cache after database rows are deleted.
+     *
+     * @param int $post_id The WP post id.
+     */
+    public static function delete_post_meta_data( $post_id ) {
+        global $wpdb;
+
+        $query = $wpdb->prepare( "DELETE FROM $wpdb->postmeta WHERE post_id = '%d'", $post_id );
+        // @codingStandardsIgnoreStart
+        $wpdb->query( $query );
+        // @codingStandardsIgnoreEnd
+
+        wp_cache_delete( $post_id, 'post_meta' );
+    }
+
+    /**
      * Query the WP post id by the given attachment id.
      *
      * @param  int $id     The attachment id to be matched with postmeta.
@@ -121,7 +138,7 @@ class Api {
      * @param  array $term Term data.
      * @param  Post  $post The current post instance.
      *
-     * @return object An array containing the `term_id` and `term_taxonomy_id`,
+     * @return object|\WP_Error An array containing the `term_id` and `term_taxonomy_id`,
      *                        WP_Error otherwise.
      */
     public static function create_new_term( $term, &$post ) {
@@ -141,6 +158,7 @@ class Api {
             // @codingStandardsIgnoreStart
             $post->set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
             // @codingStandardsIgnoreEnd
+            return $result;
         }
 
         return (object) $result;
@@ -185,6 +203,19 @@ class Api {
         }
 
         return $value;
+    }
+
+    /**
+     * Checks whether some data is a JSON string.
+     *
+     * @param mixed $data The data to be checked.
+     *
+     * @return bool
+     */
+    public static function is_json( $data ) {
+        json_decode( $data );
+
+        return ( json_last_error() === JSON_ERROR_NONE );
     }
 
 }

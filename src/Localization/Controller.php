@@ -6,6 +6,7 @@
 namespace Geniem\Importer\Localization;
 
 // Classes
+use Geniem\Importer\Post as Post;
 use Geniem\Importer\Api as Api;
 use Geniem\Importer\Exception\PostException as PostException;
 use Geniem\Importer\Errors as Errors;
@@ -24,15 +25,11 @@ class Controller {
      * The actual locale saving is happening in Plugin specific classes
      * Geniem\Importer\Localization\Polylang and Geniem\Importer\Localization\WPML
      *
-     * @param object $post      Instance of the Post class.
-     * @return void
+     * @param Post $post Instance of the Post class.
+     *
+     * @return boolean
      */
-    public static function save_locale( $post ) {
-
-        // Get needed variables
-        $post_id    = $post->get_post_id();
-        $i18n       = $post->get_i18n();
-        $gi_id      = $post->get_gi_id();
+    public static function save_locale( &$post ) {
 
         // Check which translation plugin should be used
         $activated_i18n_plugin = self::get_activated_i18n_plugin( $post );
@@ -55,11 +52,13 @@ class Controller {
     }
 
     /**
-     * Checks which translation plugin to use. On success returns slug of supported WordPress translation plugins. 'wpml', 'polylang'
+     * Checks which translation plugin to use.
+     * On success returns slug of supported WordPress translation plugins. 'wpml', 'polylang'
      * if translation plugin is not found returns false.
      *
-     * @param string $gi_id The current importer id.
-     * @return string/boolean
+     * @param Post $post The current importer object.
+     *
+     * @return string|boolean
      */
     public static function get_activated_i18n_plugin( &$post ) {
 
@@ -85,8 +84,8 @@ class Controller {
         // If Polylang or wpml is not active leave an error message for debugging
         if ( $polylang_activated === false && $wpml_activated === false ) {
             // Show an error if translation engines aren't activated and user is willing to translate
-            $err = __( 'Error, translation plugin doesn\'t seem to be activated. Please install and activate your desired translation plugin to start translations.', 'geniem-importer' );
-            $post->set_error( $post, 'i18n', '', $err );
+            $err = __( 'Error, translation plugin does not seem to be activated. Please install and activate your desired translation plugin to start translations.', 'geniem-importer' );
+            $post->set_error( 'i18n', '', $err );
             return false;
         }
     }
