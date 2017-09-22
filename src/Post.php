@@ -598,18 +598,29 @@ class Post {
      */
     protected function insert_attachment_from_url( $attachment_src, $attachment, $post_id ) {
 
-        // Get file from url
-        $http_object    = wp_remote_get( $attachment_src );
+        $file_name  = basename( $attachment_src );
+        $local_url  = '/tmp/' . $file_name;
 
-        if ( $http_object['response']['code'] !== 200 ) {
+        // Use 'copy' function if you have PHP5
+        //  and the HTTP stream wrapper enabled on your server.
+        copy( $attachment_src, $local_url );
+
+        // Run image through image magick
+        $img            = new \Imagick( realpath( $local_url ) );
+        // Strip off all exif data
+        $img->stripImage();
+        $imagick_file   = $img->writeImage( $local_url );
+
+        if ( $imagick_file !== true ) {
             return false;
         }
 
-        $wub_name       = basename( $attachment_src );
-        $file_content   = $http_object['body'];
+        // Get file from url
+        /* $http_object    = wp_remote_get( $local_url ); */
+        $file_content = file_get_contents( $local_url );
 
         // Upload file to uploads.
-        $upload = wp_upload_bits( $wub_name, null, $file_content );
+        $upload = wp_upload_bits( $file_name, null, $file_content );
 
         // If error occured during upload return false.
         if ( ! empty( $upload['error'] ) ) {
@@ -618,7 +629,7 @@ class Post {
 
         // File variables
         $file_path          = $upload['file'];
-        $file_name          = basename( $file_path );
+        /* $file_name          = basename( $file_path ); */
         $file_type          = wp_check_filetype( $file_name, null );
         $attachment_title   = sanitize_file_name( pathinfo( $file_name, PATHINFO_FILENAME ) );
         $wp_upload_dir      = wp_upload_dir();
