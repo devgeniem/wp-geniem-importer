@@ -525,7 +525,7 @@ class Post {
                 $attachment_post_id = $this->insert_attachment_from_url( $attachment_src, $attachment, $this->post_id );
 
                 // Something went wrong.
-                if ( is_wp_error( $attachment_post_id ) ) {
+                if ( is_wp_error( $attachment_post_id || $attachment_post_id === false ) ) {
                     Errors::set( $this, 'attachment', $name, __( 'An error occurred uploading the file.', 'geniem_importer' ) );
                 }
 
@@ -598,29 +598,37 @@ class Post {
      */
     protected function insert_attachment_from_url( $attachment_src, $attachment, $post_id ) {
 
-        $file_name  = basename( $attachment_src );
-        $local_url  = '/tmp/' . $file_name;
+        // Get filename from the url.
+        $file_name                  = basename( $attachment_src );
+        // Exif related variables
+        $exif_imagetype             = exif_imagetype( $attachment_src );
+        $exif_supported_imagetypes  = array(
+            IMAGETYPE_JPEG,
+            IMAGETYPE_TIFF_II,
+            IMAGETYPE_TIFF_MM
+        );
 
-        // Use 'copy' function if you have PHP5
-        //  and the HTTP stream wrapper enabled on your server.
-        copy( $attachment_src, $local_url );
+        // Construct file local url.
+        $tmp_folder                 = Settings::get( 'GI_TMP_FOLDER' );
+        $local_image                = $tmp_folder . $file_name;
 
-        // Run image through image magick
-        $img            = new \Imagick( realpath( $local_url ) );
-        // Strip off all exif data
-        $img->stripImage();
-        $imagick_file   = $img->writeImage( $local_url );
+        // Copy file to local image location
+        copy( $attachment_src, $local_image );
 
-        if ( $imagick_file !== true ) {
-            return false;
+        // If exif_read_data is callable and file type could contain exif data.
+        if ( is_callable( 'exif_read_data' ) && in_array( $exif_imagetype, $exif_supported_imagetypes ) ) {
+            // Manipulate image exif data to prevent.
+            $this->manipulate_exif_data( $attachment_src, $local_image );
         }
 
-        // Get file from url
-        /* $http_object    = wp_remote_get( $local_url ); */
-        $file_content = file_get_contents( $local_url );
+        // Get file from local temp folder.
+        $file_content = file_get_contents( $local_image );
 
         // Upload file to uploads.
         $upload = wp_upload_bits( $file_name, null, $file_content );
+
+        // After upload process we are free to delete the tmp image.
+        unlink( $local_image );
 
         // If error occured during upload return false.
         if ( ! empty( $upload['error'] ) ) {
@@ -629,7 +637,6 @@ class Post {
 
         // File variables
         $file_path          = $upload['file'];
-        /* $file_name          = basename( $file_path ); */
         $file_type          = wp_check_filetype( $file_name, null );
         $attachment_title   = sanitize_file_name( pathinfo( $file_name, PATHINFO_FILENAME ) );
         $wp_upload_dir      = wp_upload_dir();
@@ -654,6 +661,39 @@ class Post {
         wp_update_attachment_metadata( $attachment_id, $attachment_data );
 
         return $attachment_id;
+    }
+
+    /**
+     * Manipulate exif data
+     *
+     * @param string $attachment_src    Source file url.
+     * @param string $local_image       Local url for an image.
+     * @return void No return.
+     */
+    protected function manipulate_exif_data( $attachment_src, $local_image ) {
+
+        // Variable for exif data errors in PHP
+        $php_exif_data_error_exists = false;
+
+        // Check for PHP exif_read_data function errors!
+        try {
+            exif_read_data( $local_image );
+        } catch ( \Exception $e ) {
+            $php_exif_data_error_exists = true;
+        }
+
+        // If image magic is installed and exif_data_error exists
+        if ( class_exists( 'Imagick' ) && $php_exif_data_error_exists === true ) {
+
+            // Run image through image magick
+            $imagick_object = new \Imagick( realpath( $local_image ) );
+
+            // Strip off all exif data to prevent PHP 5.6 and PHP 7.0 exif errors!
+            $imagick_object->stripImage();
+
+            // Write manipulated file to the tmp folder
+            $imagick_file   = $imagick_object->writeImage( $local_image );
+        }
     }
 
     /**

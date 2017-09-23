@@ -35,6 +35,7 @@ class Settings {
         self::set( 'GI_LOG_ERRORS', false );
         self::set( 'GI_TRANSIENT_KEY', 'gi_' );
         self::set( 'GI_TRANSIENT_EXPIRATION', HOUR_IN_SECONDS );
+        self::set( 'GI_TMP_FOLDER', '/tmp/' );
     }
 
     /**
