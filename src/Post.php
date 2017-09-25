@@ -618,7 +618,7 @@ class Post {
         // If exif_read_data is callable and file type could contain exif data.
         if ( is_callable( 'exif_read_data' ) && in_array( $exif_imagetype, $exif_supported_imagetypes ) ) {
             // Manipulate image exif data to prevent.
-            $this->strip_unsupported_exif_data( $attachment_src, $local_image );
+            $this->strip_unsupported_exif_data( $local_image );
         }
 
         // Get file from local temp folder.
