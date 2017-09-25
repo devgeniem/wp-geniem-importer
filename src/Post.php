@@ -618,7 +618,7 @@ class Post {
         // If exif_read_data is callable and file type could contain exif data.
         if ( is_callable( 'exif_read_data' ) && in_array( $exif_imagetype, $exif_supported_imagetypes ) ) {
             // Manipulate image exif data to prevent.
-            $this->manipulate_exif_data( $attachment_src, $local_image );
+            $this->strip_unsupported_exif_data( $attachment_src, $local_image );
         }
 
         // Get file from local temp folder.
@@ -664,13 +664,13 @@ class Post {
     }
 
     /**
-     * Manipulate exif data
+     * If exif_read_data() fails, remove exif data from the image file
+     * to prevent errors in WordPress core.
      *
-     * @param string $attachment_src    Source file url.
      * @param string $local_image       Local url for an image.
      * @return void No return.
      */
-    protected function manipulate_exif_data( $attachment_src, $local_image ) {
+    protected function strip_unsupported_exif_data( $local_image ) {
 
         // Variable for exif data errors in PHP
         $php_exif_data_error_exists = false;
