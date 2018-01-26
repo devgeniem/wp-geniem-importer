@@ -133,7 +133,7 @@ The plugin creates a custom table into the WordPress database called `wp_geniem_
 
 ### Rollback
 
-The log provides a rollback feature. If an import fails the importer tries to roll back the previous successful import. If no previous imports with the `OK` status are found, the imported object is set into `draft` state to prevent front-end users from accessing posts with malfordem data.
+The log provides a rollback feature. If an import fails the importer tries to roll back the previous successful import. If no previous imports with the `OK` status are found, the imported object is set into `draft` state to prevent front-end users from accessing posts with malformed data.
 
 To disable the rollback feature set the `GENIEM_IMPORTER_ROLLBACK_DISABLE` constant with a value of `true`.
 
