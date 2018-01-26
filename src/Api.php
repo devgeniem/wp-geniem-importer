@@ -38,6 +38,23 @@ class Api {
     }
 
     /**
+     * Deletes all postmeta related to a single post.
+     * Flushes postmeta cache after database rows are deleted.
+     *
+     * @param int $post_id The WP post id.
+     */
+    public static function delete_post_meta_data( $post_id ) {
+        global $wpdb;
+
+        $query = $wpdb->prepare( "DELETE FROM $wpdb->postmeta WHERE post_id = '%d'", $post_id );
+        // @codingStandardsIgnoreStart
+        $wpdb->query( $query );
+        // @codingStandardsIgnoreEnd
+
+        wp_cache_delete( $post_id, 'post_meta' );
+    }
+
+    /**
      * Query the WP post id by the given attachment id.
      *
      * @param  int $id     The attachment id to be matched with postmeta.
@@ -116,38 +133,92 @@ class Api {
     }
 
     /**
-     * Get property
+     * Create a new term.
      *
-     * @param array $item
-     * @param string $key
-     * @param string $default
-     * @return void
+     * @param  array $term Term data.
+     * @param  Post  $post The current post instance.
+     *
+     * @return object|\WP_Error An array containing the `term_id` and `term_taxonomy_id`,
+     *                        WP_Error otherwise.
+     */
+    public static function create_new_term( $term, &$post ) {
+        $taxonomy = $term['taxonomy'];
+        $name     = $term['name'];
+        $slug     = $term['slug'];
+        // There might be a parent set.
+        $parent   = isset( $term['parent'] ) ? get_term_by( 'slug', $term['parent'], $taxonomy ) : false;
+        // Insert the new term.
+        $result   = wp_insert_term( $name, $taxonomy, [
+            'slug'        => $slug,
+            'description' => isset( $term['description'] ) ? $term['description'] : '',
+            'parent'      => $parent ? $parent->term_id : 0,
+        ] );
+        // Something went wrong.
+        if ( is_wp_error( $result ) ) {
+            // @codingStandardsIgnoreStart
+            $post->set_error( 'taxonomy', $name, __( 'An error occurred creating the taxonomy term.', 'geniem_importer' ) );
+            // @codingStandardsIgnoreEnd
+            return $result;
+        }
+
+        return (object) $result;
+    }
+
+    /**
+     * A helper function for getting a property
+     * from an object or an associative array.
+     *
+     * @param array  $item    An object or an associative array.
+     * @param string $key     The item key we are trying to get.
+     * @param string $default A default value to be returned if the item was not found.
+     *
+     * @return mixed
      */
     public static function get_prop( $item = [], $key = '', $default = '' ) {
         if ( is_array( $item ) && isset( $item[ $key ] ) ) {
             return $item[ $key ];
-        } elseif ( is_object( $item ) && isset( $item->{ $key } ) ) {
+        }
+        elseif ( is_object( $item ) && isset( $item->{ $key } ) ) {
             return $item->{ $key };
-        } else {
+        }
+        else {
             return $default;
         }
     }
 
     /**
-     * Set property
+     * A helper function for setting a property
+     * into an object or an associative array.
      *
-     * @param array $item
-     * @param string $key
-     * @param string $value
-     * @return void
+     * @param array  $item  An object or an associative array as a reference.
+     * @param string $key   The property key we are trying to set.
+     * @param mixed  $value The value for the property. Defaults to a null value.
+     *
+     * @return mixed
      */
-    public static function set_prop( $item = [], $key = '', $value = '' ) {
+    public static function set_prop( &$item = [], $key = '', $value = null ) {
+
         if ( is_array( $item ) ) {
-            $item[ $key ]   = $value;
-        } elseif ( is_object( $item ) ) {
+            $item[ $key ] = $value;
+        }
+        elseif ( is_object( $item ) ) {
             $item->{ $key } = $value;
         }
+
         return $value;
+    }
+
+    /**
+     * Checks whether some data is a JSON string.
+     *
+     * @param mixed $data The data to be checked.
+     *
+     * @return bool
+     */
+    public static function is_json( $data ) {
+        json_decode( $data );
+
+        return ( json_last_error() === JSON_ERROR_NONE );
     }
 
 }

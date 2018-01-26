@@ -1,16 +1,16 @@
 <?php
 /**
- * Plugin settings controller.
+ * Polylang translations controller.
  */
 
 namespace Geniem\Importer\Localization;
 
 // Classes
 use Geniem\Importer\Api as Api;
+use Geniem\Importer\Post;
 use Geniem\Importer\Settings as Settings;
 
-
-defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+defined( 'ABSPATH' ) || die( 'No script kiddies please!' );
 
 /**
  * Class Polylang
@@ -26,9 +26,9 @@ class Polylang {
     protected static $polylang = null;
 
     /**
-     * Holds polylang.
+     * Holds polylang language codes.
      *
-     * @var object|null
+     * @var array
      */
     protected static $languages = [];
 
@@ -77,6 +77,7 @@ class Polylang {
 
     /**
      * Returns the polylang object.
+     *
      * @return object|null Polylang object.
      */
     public static function pll() {
@@ -85,7 +86,8 @@ class Polylang {
 
     /**
      * Returns the polylang language list of language codes.
-     * @return array Polylang language list.
+     *
+     * @return array
      */
     public static function language_list() {
         return self::$languages;
@@ -93,13 +95,11 @@ class Polylang {
 
      /**
       * Set attachment language by post_id
-      * @todo : Why there is an attachment id?
       *
-      * @param int $attachment_post_id
-      * @param int $attachment_id
-      * @param string $language
+      * @param int    $attachment_post_id Attachment wp id.
+      * @param string $language The PLL language code.
       */
-    public static function set_attachment_language( $attachment_post_id, $attachment_id, $language ) {
+    public static function set_attachment_language( $attachment_post_id, $language ) {
         if ( $language ) {
             pll_set_post_language( $attachment_post_id, $language );
         }
@@ -108,8 +108,10 @@ class Polylang {
     /**
      * Get attachment by attachment id and language
      *
-     * @param int $attachment_post_id
-     * @param string $language
+     * @param int    $attachment_post_id Attachment wp id.
+     * @param string $language           The attachment locale.
+     *
+     * @return integer
      */
     public static function get_attachment_by_language( $attachment_post_id, $language ) {
         if ( isset( self::$polylang->filters_media ) ) {
@@ -122,29 +124,35 @@ class Polylang {
     /**
      * Save Polylang locale.
      *
-     * @param Geniem\Importer\Post $post The current importer post object.
+     * @param Post $post The current importer post object.
      * @return void
      */
-    public static function save_pll_locale( $post ) {
+    public static function save_pll_locale( &$post ) {
 
         // Get needed variables
         $post_id    = $post->get_post_id();
-        $gi_id      = $post->get_gi_id();
         $i18n       = $post->get_i18n();
+        $locale     = Api::get_prop( $i18n, 'locale' );
+        $master     = Api::get_prop( $i18n, 'master', false );
 
         // If pll information is in wrong format
         if ( is_array( $i18n ) ) {
 
-            // Set post locale. 
-            \pll_set_post_language( $post_id, $i18n['locale'] );
+            // Set post locale.
+            \pll_set_post_language( $post_id, $locale );
 
             // Run only if master exists
-            if ( isset( $i18n['master'] ) ) {
+            if ( $master ) {
 
                 // Check if we need to link the post to its master.
-                $master_key = $i18n['master']['query_key'] ?? null;
+                $master_key = Api::get_prop( $master, 'query_key', '' );
 
-                // If master key exists
+                if ( empty( $master_key ) ) {
+                    // The 'master' property contains a 'gi_id'.
+                    $master_key = $master;
+                }
+
+                // If a master key is not empty.
                 if ( ! empty( $master_key ) ) {
 
                     // Get master post id for translation linking
@@ -152,7 +160,7 @@ class Polylang {
                     $master_id      = substr( $master_key, strlen( $gi_id_prefix ) );
                     $master_post_id = Api::get_post_id_by_api_id( $master_id );
 
-                    // Set link for translations.
+                    // Set the link for translations if a matching post was found.
                     if ( $master_post_id ) {
 
                             // Get current translation.
@@ -160,8 +168,8 @@ class Polylang {
 
                             // Set up new translations.
                             $new_translations = [
-                                'post_id'         => $master_post_id,
-                                $i18n['locale']   => $post_id,
+                                'post_id' => $master_post_id,
+                                $locale   => $post_id,
                             ];
                             $parsed_args = \wp_parse_args( $new_translations, $current_translations );
 
@@ -171,8 +179,11 @@ class Polylang {
                 } // End if().
             } // End if().
         } else {
-            // @todo show an error: Post doesn't have pll information in right format.
-
+            $post->set_error(
+                'pll',
+                $i18n,
+                __( 'Post does not have pll information in right format.', 'geniem-importer' )
+            );
         } // End if().
     }
 }

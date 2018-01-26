@@ -3,13 +3,17 @@
  * An example of post importing.
  */
 
-$post_obj = new stdClass();
+$data = new stdClass();
 
-$post_obj->post_title   = 'The post title';
-$post_obj->post_content = 'The post main content HTML.';
-$post_obj->post_excerpt = 'The excerpt text of the post.';
+// Set the basic post data as an associative array and cast it to object.
+$data->post = (object) [
+    'post_title'   => 'The post title',
+    'post_content' => 'The post main content HTML.',
+    'post_excerpt' => 'The excerpt text of the post.',
+];
 
-$attachments = [
+// The array of attachments.
+$data->attachments = [
     [
         'filename'      => '123456.jpg',
         'mime_type'     => 'image/jpg',
@@ -21,15 +25,14 @@ $attachments = [
     ],
 ];
 
-$postmeta = [
-    [
-        'meta_key'      => '_thumbnail_id',
-        'meta_key'      => '_thumbnail_id',
-        'meta_value'    => 'gi_attachment_123456',
-    ],
+// Postmeta data as key-value pairs.
+$data->meta = [
+    'key1'          => 'value1',
+    '_thumbnail_id' => 'gi_attachment_123456',
 ];
 
-$advanced_custom_fields = [
+// Advanced custom fields data.
+$data->acf = [
     'name'  => 'repeater_field_key',
     'value' => [
         [
@@ -51,23 +54,24 @@ $advanced_custom_fields = [
     ],
 ];
 
-$polylang_data = [
+// Localization data.
+$data->i18n = [
     'locale' => 'en',
     'master' => 'gi_id_56',
 ];
 
-$api_id = 'my_custom_id_123';
-$post   = new \Geniem\Importer\Post( $api_id );
+// Create a new instance by a unique id.
+$api_id = 'my_custom_id_1234';
+$post = new \Geniem\Importer\Post( $api_id );
 
-$post->set_post( $post_obj );
-$post->set_attachments( $attachments );
-$post->set_meta( $postmeta );
-$post->set_acf( $advanced_custom_fields );
-$post->set_pll( $polylang_data );
+// Set all the data for the post.
+$post->set_data( $data );
 
+// Try to save the post.
 try {
+    // If the data was invalid or errors occur while saving the post into the dabase, an exception is thrown.
     $post->save();
-} catch ( PostException $e ) {
+} catch ( \Geniem\Importer\Exception\PostException $e ) {
     foreach ( $e->get_errors() as $scope => $errors ) {
         foreach ( $errors as $key => $message ) {
             error_log( "Importer error in $scope: " . $message );
