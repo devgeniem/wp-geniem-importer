@@ -9,7 +9,9 @@ use Geniem\Importer\Exception\PostException as PostException;
 use Geniem\Importer\Localization\Polylang as Polylang;
 use WP_Post;
 
-defined( 'ABSPATH' ) || die( 'No script kiddies please!' );
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 /**
  * Class Post
@@ -182,7 +184,7 @@ class Post {
 
         $this->errors[ $scope ] = $this->errors[ $scope ] ?? [];
 
-        $message = '(' . Settings::get( 'GI_ID_PREFIX' ) . $gi_id . ') ' . $error;
+        $message = '(' . Settings::get( 'id_prefix' ) . $gi_id . ') ' . $error;
 
         $this->errors[ $scope ][] = [
             'message' => $message,
@@ -190,7 +192,7 @@ class Post {
         ];
 
         // Maybe log errors.
-        if ( Settings::get( 'GI_LOG_ERRORS' ) ) {
+        if ( Settings::get( 'log_errors' ) ) {
             // @codingStandardsIgnoreStart
             error_log( 'Geniem Importer: ' . $error );
             // @codingStandardsIgnoreEnd
@@ -732,7 +734,7 @@ class Post {
             require_once( ABSPATH . 'wp-admin/includes/image.php' );
         }
 
-        $attachment_prefix      = Settings::get( 'GI_ATTACHMENT_PREFIX' );
+        $attachment_prefix      = Settings::get( 'attachment_prefix' );
         $attachment_language    = Api::get_prop( $this->i18n, 'locale' );
 
         foreach ( $this->attachments as &$attachment ) {
@@ -848,7 +850,7 @@ class Post {
         );
 
         // Construct file local url.
-        $tmp_folder                 = Settings::get( 'GI_TMP_FOLDER' );
+        $tmp_folder                 = Settings::get( 'tmp_folder' );
         $local_image                = $tmp_folder . $file_name;
 
         // Copy file to local image location
@@ -1092,7 +1094,7 @@ class Post {
      * Adds postmeta rows for matching a WP post with an external source.
      */
     protected function identify() {
-        $id_prefix = Settings::get( 'GI_ID_PREFIX' );
+        $id_prefix = Settings::get( 'id_prefix' );
 
         // Remove the trailing '_'.
         $identificator = rtrim( $id_prefix, '_' );
@@ -1170,7 +1172,7 @@ class Post {
         $last_import = Log::get_last_successful_import( $this->post_id );
 
         if ( $last_import &&
-             Settings::get( 'GENIEM_IMPORTER_ROLLBACK_DISABLE' ) !== true ) {
+             Settings::get( 'rollback_disable' ) !== true ) {
             // First delete all imported data.
             $this->delete_data();
 

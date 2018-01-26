@@ -5,6 +5,10 @@
 
 namespace Geniem\Importer\Localization;
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 // Classes
 use Geniem\Importer\Api as Api;
 use Geniem\Importer\Post;
@@ -156,7 +160,7 @@ class Polylang {
                 if ( ! empty( $master_key ) ) {
 
                     // Get master post id for translation linking
-                    $gi_id_prefix   = Settings::get( 'GI_ID_PREFIX' );
+                    $gi_id_prefix   = Settings::get( 'id_prefix' );
                     $master_id      = substr( $master_key, strlen( $gi_id_prefix ) );
                     $master_post_id = Api::get_post_id_by_api_id( $master_id );
 

@@ -17,7 +17,9 @@ namespace Geniem;
 use \Geniem\Importer\Settings as Settings;
 use \Geniem\Importer\Localization\Polylang as Polylang;
 
-defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 /**
  * The base class for the plugin.

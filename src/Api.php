@@ -5,6 +5,10 @@
 
 namespace Geniem\Importer;
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class Api
  *
@@ -21,7 +25,7 @@ class Api {
     public static function get_post_id_by_api_id( $id ) {
         global $wpdb;
         // Concatenate the meta key.
-        $post_meta_key = Settings::get( 'GI_ID_PREFIX' ) . $id;
+        $post_meta_key = Settings::get( 'id_prefix' ) . $id;
         // Prepare the sql.
         $prepared = $wpdb->prepare(
             "SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key = %s",
@@ -63,7 +67,7 @@ class Api {
     public static function get_attachment_post_id_by_attachment_id( $id ) {
         global $wpdb;
         // Concatenate the meta key.
-        $post_meta_key = Settings::get( 'GI_ATTACHMENT_PREFIX' ) . $id;
+        $post_meta_key = Settings::get( 'attachment_prefix' ) . $id;
         // Prepare the sql.
         $prepared = $wpdb->prepare(
             "SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key = %s",
@@ -87,7 +91,7 @@ class Api {
      * @return string|false Returns the id without the prefix if valid, else returns false.
      */
     public static function is_query_id( $id_string ) {
-        $gi_id_prefix  = Settings::get( 'GI_ID_PREFIX' );
+        $gi_id_prefix  = Settings::get( 'id_prefix' );
         $prefix_length = strlen( $gi_id_prefix );
         if ( \strncmp( $id_string, $gi_id_prefix, $prefix_length ) === 0 ) {
             return substr( $id_string, $prefix_length );
@@ -120,7 +124,7 @@ class Api {
      */
     public static function delete_all_posts( $force_delete = true ) {
         global $wpdb;
-        $id_prefix     = Settings::get( 'GI_ID_PREFIX' );
+        $id_prefix     = Settings::get( 'id_prefix' );
         $identificator = rtrim( $id_prefix, '_' );
         $query         = "SELECT DISTINCT post_id FROM $wpdb->postmeta WHERE meta_key = '%s'";
         $results       = $wpdb->get_col( $wpdb->prepare( $query, $identificator ) );
