@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-- Code documementation updates and fixes.
+- Code documentation updates and fixes.
 - All plugin data including the plugin version is loaded automatically from the plugin file comments and stored into plugin settings.
 - Errors are back under the Post class. Other classes may access the errors via an object reference of the Post class.
 - The `Polylang` class uses `Api::get_prop()` for `i18n` data handling to prevent errors.

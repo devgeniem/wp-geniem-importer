@@ -32,7 +32,7 @@ An example of importing a single post can be found [here](docs/examples/example-
 
 #### __construct() `public`
 
-To start a new import process call the Post class constructor and pass a unique Geniem Importer id for it. This creates a new instance of the class and identifies it. If this is an update, the WP post matching the id is fetched an the post object data is loaded as default values for the import. *To ensure the time values are updating they are unset from the post object at this point.*
+To start a new import process call the Post class constructor and pass a unique Geniem Importer id for it. This creates a new instance of the class and identifies it. If this is an update, the WP post matching the id is fetched and the post object data is loaded as default values for the import. *To ensure the time values are updating they are unset from the post object at this point.*
 
 ##### Parameters
 

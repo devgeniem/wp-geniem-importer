@@ -154,12 +154,22 @@ class Log {
         global $wpdb;
 
         // Insert into database.
-        $wpdb->insert( $wpdb->prefix . Settings::get( 'TABLE_NAME' ), [
+        $table = $wpdb->prefix . Settings::get( 'TABLE_NAME' );
+        $wpdb->insert(
+            $table,
+            [
                 'gi_id'           => $this->gi_id,
                 'post_id'         => $this->post_id,
                 'import_date_gmt' => $this->import_date_gmt,
                 'data'            => $this->data,
                 'status'          => $this->status,
+            ],
+            [
+                '%s',
+                '%d',
+                '%s',
+                '%s',
+                '%s',
             ]
         );
     }

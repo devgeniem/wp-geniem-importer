@@ -133,7 +133,7 @@ class Api {
     }
 
     /**
-     * Create new term.
+     * Create a new term.
      *
      * @param  array $term Term data.
      * @param  Post  $post The current post instance.
@@ -177,9 +177,11 @@ class Api {
     public static function get_prop( $item = [], $key = '', $default = '' ) {
         if ( is_array( $item ) && isset( $item[ $key ] ) ) {
             return $item[ $key ];
-        } elseif ( is_object( $item ) && isset( $item->{ $key } ) ) {
+        }
+        elseif ( is_object( $item ) && isset( $item->{ $key } ) ) {
             return $item->{ $key };
-        } else {
+        }
+        else {
             return $default;
         }
     }
@@ -189,16 +191,17 @@ class Api {
      * into an object or an associative array.
      *
      * @param array  $item  An object or an associative array as a reference.
-     * @param string $key   The item key we are trying to get.
-     * @param string $value A default value to be returned if the item was not found.
+     * @param string $key   The property key we are trying to set.
+     * @param mixed  $value The value for the property. Defaults to a null value.
      *
      * @return mixed
      */
-    public static function set_prop( &$item = [], $key = '', $value = '' ) {
+    public static function set_prop( &$item = [], $key = '', $value = null ) {
 
         if ( is_array( $item ) ) {
             $item[ $key ] = $value;
-        } elseif ( is_object( $item ) ) {
+        }
+        elseif ( is_object( $item ) ) {
             $item->{ $key } = $value;
         }
 
