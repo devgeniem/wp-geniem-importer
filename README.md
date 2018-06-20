@@ -112,7 +112,7 @@ $post->set_data( $my_raw_post_data );
 }
 ```
 
-#### save_data() `public`
+#### save() `public`
 
 Run this function after setting the data for the importer object. This function saves all set data into WordPress database. Before any data is stored into the database the current `Post` object is validated and it throws an `Geniem\Importer\Exception\PostException` if any errors have occurred. After all data is saved into the database the instance is validated again and any save errors throw the same expection. If no errors occurred, the WordPress post id is returned.
 
