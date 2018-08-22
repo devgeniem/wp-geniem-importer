@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - Initial release.
+- Settings are now used with a shorter lower case format and thus separated from the constants.
 
 ## [0.3.0] - 2018-01-26
 

@@ -11,7 +11,9 @@ use Geniem\Importer\Api as Api;
 use Geniem\Importer\Exception\PostException as PostException;
 use Geniem\Importer\Errors as Errors;
 
-defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 /**
  * Class Localization

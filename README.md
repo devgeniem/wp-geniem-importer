@@ -1,10 +1,8 @@
 ![geniem-github-banner](https://cloud.githubusercontent.com/assets/5691777/14319886/9ae46166-fc1b-11e5-9630-d60aa3dc4f9e.png)
 
-# Geniem WordPress Importer
+# Enterprise WordPress Importer
 
-Geniem Importer is a WordPress importer plugin enabling importing WordPress data from external sources through an object-oriented functional API.
-
-***The plugin is in development stage and available only as a private repository for Geniem developers!***
+Enterprise Importer is a WordPress importer plugin enabling importing WordPress data from external sources through an object-oriented functional API.
 
 ## Installation
 
@@ -22,17 +20,17 @@ wp plugin activate wp-geniem-importer
 
 ## Importing post objects
 
-The plugin provides a functional API for importing various data types. You can think of the importer as an integration layer between your custom data source and the WordPress database. Your job is to format the data to meet the importer object specification. If you are lucky and your external data source can provide the data in the importer data format, your job is as simple as decoding the data into a PHP object and then passing it through the API functions.
+The plugin provides a functional API for importing various data types. You can think of the importer as an integration layer between your custom data source and the WordPress database. Your job is to format the data to meet the importer object specification. If you are lucky and your external data source can provide the data in the importer data format, your job is as simple as decoding the data into a PHP object and then passing it through the API.
 
-An import is a two step process. First you must set the data for the importer `\Geniem\Importer\Post` object instance and then you call its save function to store the object data into the WordPress database.
+An import is a two step process. First you must set the data for the importer `\Geniem\Importer\Post` object instance and then you call its save method to store the object data into the WordPress database.
 
 An example of importing a single post can be found [here](docs/examples/example-post.php).
 
-### \Geniem\Importer\Post - Functions
+### \Geniem\Importer\Post - Methods
 
 #### __construct() `public`
 
-To start a new import process call the Post class constructor and pass a unique Geniem Importer id for it. This creates a new instance of the class and identifies it. If this is an update, the WP post matching the id is fetched and the post object data is loaded as default values for the import. *To ensure the time values are updating they are unset from the post object at this point.*
+To start a new import process call the Post class constructor and pass a unique id for it. This creates a new instance of the class and identifies it. If this is an update, the WP post matching the id is fetched and the post object data is loaded as default values for the import. *To ensure the time values are updating they are unset from the post object at this point.*
 
 ##### Parameters
 
@@ -120,6 +118,38 @@ Run this function after setting the data for the importer object. This function 
 
 - `$force_save` *(boolean) (Optional)* Set this to `true` skip validation and force saving. You can create custom validations through multiple hooks or by manually inspecting error with by getting them with the `get_errors()` function. Defaults to `false`.
 
+## Plugin settings
+
+The `\Geniem\Importer\Settings\` class is used to set and load all plugin settings. It uses the following settings that are overridable with corresponding constants.
+
+### Available settings
+
+- Setting key `id_prefix`, constant `GI_ID_PREFIX`, default value `'gi_id_'`.
+- Setting key `attachment_prefix`, constant `GI_ATTACHMENT_PREFIX`, default value `'gi_attachment_'`.
+- Setting key `log_errors`, constant `GI_LOG_ERRORS`, default value `false`.
+- Setting key `transient_key`, constant `GI_TRANSIENT_KEY`, default value `'gi_'`.
+- Setting key `transient_expiration`, constant `GI_TRANSIENT_EXPIRATION`, default value `HOUR_IN_SECOND`.
+- Setting key `tmp_folder`, constant `GI_TMP_FOLDER`, default value `'/tmp/'`.
+- Setting key `table_name`, constant `GI_TABLE_NAME`, default value `geniem_importer_log`.
+- Setting key `log_status_ok`, constant `GI_LOG_STATUS_OK`, default value `'OK'`.
+- Setting key `log_status_fail`, constant `GI_LOG_STATUS_FAIL`, default value `'FAIL'`.
+
+### Accessing settings
+
+Example usage:
+
+```php
+$gi_id_prefix = \Geniem\Importer\Settings::get( 'id_prefix' );
+```
+
+### Overriding settings
+
+To override the transient expiration time set the following constant before the setting is used the first time.
+
+```php
+define( 'GI_TRANSIENT_EXPIRATION', MONTH_IN_SECONDS );
+```
+
 ## Logging
 
 The plugin creates a custom table into the WordPress database called `wp_geniem_importer_log`. This table holds log entries of all import actions and contains the following columns:
@@ -146,4 +176,3 @@ To disable the rollback feature set the `GENIEM_IMPORTER_ROLLBACK_DISABLE` const
 -  [Geniem](https://github.com/devgeniem)
 -  [Ville Siltala](https://github.com/villesiltala)
 -  [Timi-Artturi Mäkelä](https://github.com/Liblastic)
-

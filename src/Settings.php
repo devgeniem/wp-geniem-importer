@@ -5,7 +5,9 @@
 
 namespace Geniem\Importer;
 
-defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 /**
  * Class Settings
@@ -30,14 +32,15 @@ class Settings {
         // Sets the VERSION setting.
         self::$settings = $plugin_data;
 
-        self::set( 'GI_ID_PREFIX', 'gi_id_' );
-        self::set( 'GI_ATTACHMENT_PREFIX', 'gi_attachment_' );
-        self::set( 'GI_LOG_ERRORS', false );
-        self::set( 'GI_TRANSIENT_KEY', 'gi_' );
-        self::set( 'GI_TRANSIENT_EXPIRATION', HOUR_IN_SECONDS );
-        self::set( 'GI_TMP_FOLDER', '/tmp/' );
-        self::set( 'GI_LOG_STATUS_OK', 'OK' );
-        self::set( 'GI_LOG_STATUS_FAIL', 'FAIL' );
+        self::set( 'id_prefix', 'gi_id_' );
+        self::set( 'attachment_prefix', 'gi_attachment_' );
+        self::set( 'log_errors', false );
+        self::set( 'transient_key', 'gi_' );
+        self::set( 'transient_expiration', HOUR_IN_SECONDS );
+        self::set( 'tmp_folder', '/tmp/' );
+        self::set( 'table_name', 'geniem_importer_log' );
+        self::set( 'log_status_ok', 'OK' );
+        self::set( 'log_status_fail', 'FAIL' );
     }
 
     /**
@@ -49,9 +52,17 @@ class Settings {
      */
     public static function get( $key ) {
         $key = strtoupper( $key );
+
+        // If a constant is set that matches the setting key, use it.
+        $constant_key = 'GI_' . strtoupper( $key );
+        if ( defined( $constant_key ) ) {
+            return constant( $constant_key );
+        }
+
         if ( isset( self::$settings[ $key ] ) ) {
             return self::$settings[ $key ];
-        } else {
+        }
+        else {
             return null;
         }
     }

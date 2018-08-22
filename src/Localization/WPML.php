@@ -5,7 +5,9 @@
 
 namespace Geniem\Importer\Localization;
 
-defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 /**
  * Class Polylang

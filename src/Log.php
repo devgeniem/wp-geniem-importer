@@ -5,6 +5,10 @@
 
 namespace Geniem\Importer;
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Class Log
  *
@@ -122,8 +126,8 @@ class Log {
         // This is an importer Post object. Save the log entry.
         if ( $data instanceof Post ) {
             // Get status texts.
-            $ok_status   = Settings::get( 'GI_LOG_STATUS_OK' );
-            $fail_status = Settings::get( 'GI_LOG_STATUS_FAIL' );
+            $ok_status   = Settings::get( 'log_status_ok' );
+            $fail_status = Settings::get( 'log_status_fail' );
 
             // Data for the log entry.
             $this->gi_id           = $data->get_gi_id();
@@ -154,7 +158,7 @@ class Log {
         global $wpdb;
 
         // Insert into database.
-        $table = $wpdb->prefix . Settings::get( 'TABLE_NAME' );
+        $table = $wpdb->prefix . Settings::get( 'table_name' );
         $wpdb->insert(
             $table,
             [
@@ -184,8 +188,8 @@ class Log {
     public static function get_last_successful_import( $post_id ) {
         global $wpdb;
 
-        $table_name = $wpdb->prefix . Settings::get( 'TABLE_NAME' );
-        $ok_status  = Settings::get( 'GI_LOG_STATUS_OK' );
+        $table_name = $wpdb->prefix . Settings::get( 'table_name' );
+        $ok_status  = Settings::get( 'log_status_ok' );
 
         $row = $wpdb->get_row( $wpdb->prepare(
             "
