@@ -1077,21 +1077,20 @@ class Post {
                     break;
 
                 case 'image':
-                    // Check if image exists.
+                    // Check if image exists and fetch its ID. Otherwise the ID is an empty string, which
+                    // sets the image field as empty.
                     $attachment_gi_id   = Settings::get( 'GI_ATTACHMENT_PREFIX' ) . $value;
-                    $attachment_post_id = $this->attachment_ids[ $attachment_gi_id ];
-                    if ( ! empty( $attachment_post_id ) ) {
-                        if ( ! empty( $parent_groupable ) ) {
-                            $parent_groupable['value'][ $key ] = $attachment_post_id;
-                        }
-                        else {
-                            update_field( $key, $attachment_post_id, $this->post_id );
-                        }
+                    $attachment_post_id = $this->attachment_ids[ $attachment_gi_id ] ?? '';
+
+                    // If the image is a sub field, add it to the parent's fields array.
+                    if ( ! empty( $parent_groupable ) ) {
+                        $parent_groupable['value'][ $key ] = $attachment_post_id;
                     }
+                    // Else update the field itself
                     else {
-                        $err = __( 'Trying to set an image in an ACF field that does not exists.', 'geniem-importer' );
-                        $this->set_error( 'acf', 'image_field', $err );
+                        update_field( $key, $attachment_post_id, $this->post_id );
                     }
+
                     break;
 
                 // @todo Test which field types require no extra logic.
