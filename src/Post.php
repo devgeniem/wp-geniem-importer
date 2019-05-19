@@ -648,11 +648,6 @@ class Post {
             $this->save_meta();
         }
 
-        // Save taxonomies.
-        if ( ! empty( $this->taxonomies ) ) {
-            $this->save_taxonomies();
-        }
-
         // Save acf data.
         if ( ! empty( $this->acf ) ) {
             $this->save_acf();
@@ -661,6 +656,11 @@ class Post {
         // Save localization data.
         if ( ! empty( $this->i18n ) ) {
             Localization\Controller::save_locale( $this );
+        }
+
+        // Save taxonomies.
+        if ( ! empty( $this->taxonomies ) ) {
+            $this->save_taxonomies();
         }
 
         // If this is not forced or a rollback save, check for errors after save process.
@@ -991,23 +991,33 @@ class Post {
         if ( is_array( $this->taxonomies ) ) {
             $term_ids_by_tax = [];
             foreach ( $this->taxonomies as &$term ) {
+
                 // Safely get values from the term.
                 $slug     = Api::get_prop( $term, 'slug' );
                 $taxonomy = Api::get_prop( $term, 'taxonomy' );
+                $lang     = ! empty( $this->i18n['locale'] ) ? $this->i18n['locale'] : \pll_default_language();
 
-                // Fetch the term object.
-                $term_obj = get_term_by( 'slug', $slug, $taxonomy );
+                $found_terms = \get_terms( [
+                    'slug'       => $slug,
+                    'taxonomy'   => $taxonomy,
+                    'lang'       => $lang,
+                    'hide_empty' => false,
+                    'fields'     => 'ids',
+                ] );
 
-                // If the term does not exist, create it.
-                if ( ! $term_obj ) {
-                    $term_obj = Api::create_new_term( $term, $this );
-                    // @todo check for wp error and continue, edit for ACF taxonomies with similar code
-                }
-                // Add term id.
-                if ( isset( $term_ids_by_tax[ $taxonomy ] ) ) {
-                    $term_ids_by_tax[ $taxonomy ][] = $term_obj->term_id;
-                } else {
-                    $term_ids_by_tax[ $taxonomy ] = [ $term_obj->term_id ];
+                if ( ! empty( $found_terms ) ) {
+
+                    $id = $found_terms[0] ?? false;
+
+                    if ( $id ) {
+                        // Add term id.
+                        if ( isset( $term_ids_by_tax[ $taxonomy ] ) ) {
+                            $term_ids_by_tax[ $taxonomy ][] = $id;
+                        }
+                        else {
+                            $term_ids_by_tax[ $taxonomy ] = [ $id ];
+                        }
+                    }
                 }
             }
             foreach ( $term_ids_by_tax as $taxonomy => $terms ) {
