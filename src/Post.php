@@ -741,15 +741,22 @@ class Post {
             $attachment_src     = Api::get_prop( $attachment, 'src' );
             $attachment_post_id = Api::get_attachment_post_id_by_attachment_id( $attachment_id );
 
+            \error_log( 'IMPORTER DEBUG: uploading attachment ID: ' . $attachment_id . ' SRC: ' . $attachment_src );
+
             if ( empty( $attachment_src ) || empty( $attachment_id ) ) {
                 // @codingStandardsIgnoreStart
                 $this->set_error( 'attachment', $attachment, __( 'The attachment object has missing parameters.', 'geniem_importer' ) );
                 // @codingStandardsIgnoreEnd
+
+                \error_log( 'IMPORTER ERROR: The attachment object has missing parameters.' );
+
                 continue;
             }
 
             // Check if attachment doesn't exists, and upload it.
             if ( ! $attachment_post_id ) {
+
+                \error_log( 'IMPORTER DEBUG: no attachment for post. trying to upload' );
 
                 // Insert upload attachment from url
                 $attachment_post_id = $this->insert_attachment_from_url( $attachment_src, $attachment, $this->post_id );
@@ -759,6 +766,8 @@ class Post {
                     // @codingStandardsIgnoreStart
                     $this->set_error( 'attachment', $attachment, __( 'An error occurred uploading the file.', 'geniem_importer' ) );
                     // @codingStandardsIgnoreEnd
+
+                    \error_log( 'IMPORTER ERROR: An error occurred uploading the file.' );
                 }
 
                 if ( $attachment_post_id ) {
@@ -784,9 +793,13 @@ class Post {
                     }
                 } // End if().
             } // End if().
-
+            else {
+                \error_log('IMPORTER DEBUG: attachment ID for was post and no upload done.' );
+            }
             // Update attachment meta and handle translations
             if ( $attachment_post_id ) {
+
+                \error_log( 'IMPORTER DEBUG: attachment post id found.' );
 
                 // Get attachment translations.
                 if ( Polylang::pll() ) {
@@ -837,6 +850,8 @@ class Post {
      */
     protected function insert_attachment_from_url( $attachment_src, $attachment, $post_id ) {
 
+        \error_log( 'IMPORTER DEBUG: starting upload from url.' );
+
         // Get filename from the url.
         $file_name                  = basename( $attachment_src );
         // Exif related variables
@@ -866,12 +881,16 @@ class Post {
         // Upload file to uploads.
         $upload = wp_upload_bits( $file_name, null, $file_content );
 
+        \error_log( 'IMPORTER DEBUG: uploaded.' );
+
         // After upload process we are free to delete the tmp image.
         unlink( $local_image );
 
         // If error occured during upload return false.
         if ( ! empty( $upload['error'] ) ) {
             return false;
+
+            \error_log( 'IMPORTER ERROR: cant upload attachment.' );
         }
 
         // File variables
@@ -916,7 +935,8 @@ class Post {
         // Check for PHP exif_read_data function errors!
         try {
             exif_read_data( $local_image );
-        } catch ( \Exception $e ) {
+        }
+        catch ( \Exception $e ) {
             $php_exif_data_error_exists = true;
         }
 
