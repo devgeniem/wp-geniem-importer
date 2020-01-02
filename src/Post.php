@@ -650,11 +650,6 @@ class Post {
             $this->save_meta();
         }
 
-        // Save taxonomies.
-        if ( ! empty( $this->taxonomies ) ) {
-            $this->save_taxonomies();
-        }
-
         // Save acf data.
         if ( ! empty( $this->acf ) ) {
             $this->save_acf();
@@ -663,6 +658,11 @@ class Post {
         // Save localization data.
         if ( ! empty( $this->i18n ) ) {
             Localization\Controller::save_locale( $this );
+        }
+
+        // Save taxonomies.
+        if ( ! empty( $this->taxonomies ) ) {
+            $this->save_taxonomies();
         }
 
         // If this is not forced or a rollback save, check for errors after save process.
@@ -993,23 +993,33 @@ class Post {
         if ( is_array( $this->taxonomies ) ) {
             $term_ids_by_tax = [];
             foreach ( $this->taxonomies as &$term ) {
+
                 // Safely get values from the term.
                 $slug     = Api::get_prop( $term, 'slug' );
                 $taxonomy = Api::get_prop( $term, 'taxonomy' );
+                $lang     = ! empty( $this->i18n['locale'] ) ? $this->i18n['locale'] : \pll_default_language();
 
-                // Fetch the term object.
-                $term_obj = get_term_by( 'slug', $slug, $taxonomy );
+                $found_terms = \get_terms( [
+                    'slug'       => $slug,
+                    'taxonomy'   => $taxonomy,
+                    'lang'       => $lang,
+                    'hide_empty' => false,
+                    'fields'     => 'ids',
+                ] );
 
-                // If the term does not exist, create it.
-                if ( ! $term_obj ) {
-                    $term_obj = Api::create_new_term( $term, $this );
-                    // @todo check for wp error and continue, edit for ACF taxonomies with similar code
-                }
-                // Add term id.
-                if ( isset( $term_ids_by_tax[ $taxonomy ] ) ) {
-                    $term_ids_by_tax[ $taxonomy ][] = $term_obj->term_id;
-                } else {
-                    $term_ids_by_tax[ $taxonomy ] = [ $term_obj->term_id ];
+                if ( ! empty( $found_terms ) ) {
+
+                    $id = $found_terms[0] ?? false;
+
+                    if ( $id ) {
+                        // Add term id.
+                        if ( isset( $term_ids_by_tax[ $taxonomy ] ) ) {
+                            $term_ids_by_tax[ $taxonomy ][] = $id;
+                        }
+                        else {
+                            $term_ids_by_tax[ $taxonomy ] = [ $id ];
+                        }
+                    }
                 }
             }
             foreach ( $term_ids_by_tax as $taxonomy => $terms ) {
@@ -1032,54 +1042,9 @@ class Post {
 
             if ( is_array( $this->acf ) ) {
 
-                foreach ( $this->acf as $acf_row ) {
-                    // The key must be set.
-                    if ( empty( Api::get_prop( $acf_row, 'key', '' ) ) ) {
-                        continue;
-                    }
-
-                    $type  = Api::get_prop( $acf_row, 'type', 'default' );
-                    $key   = Api::get_prop( $acf_row, 'key', '' );
-                    $value = Api::get_prop( $acf_row, 'value', '' );
-
-                    switch ( $type ) {
-                        case 'taxonomy':
-                            $terms = [];
-                            foreach ( $value as &$term ) {
-                                $term_slug = Api::get_prop( $term, 'slug' );
-                                $term_taxonomy = Api::get_prop( $term, 'taxonomy' );
-                                $term_obj = \get_term_by( 'slug', $term_slug, $term_taxonomy );
-                                // If the term does not exist, create it.
-                                if ( ! $term_obj ) {
-                                    $term_obj = Api::create_new_term( $term, $this );
-                                }
-                                $terms[] = (int) $term_obj->term_id;
-                            }
-                            if ( count( $terms ) ) {
-                                update_field( $key, $terms, $this->post_id );
-                            }
-                            break;
-
-                        case 'image':
-                            // Check if image exists.
-                            $attachment_post_id = $this->attachment_ids[ $value ];
-                            if ( ! empty( $attachment_post_id ) ) {
-                                update_field( $key, $attachment_post_id, $this->post_id );
-                            } else {
-                                $err = __( 'Trying to set an image in an ACF field that does not exists.', 'geniem-importer' );
-                                $this->set_error( 'acf', 'image_field', $err );
-                            }
-                            break;
-
-                        // @todo Test which field types require no extra logic.
-                        // Currently tested: 'select'
-                        default:
-                            update_field( $key, $value, $this->post_id );
-                            break;
-                    }
-                } // End foreach().
-            } // End if().
-        } // End if().
+                $this->save_acf_fields( $this->acf );
+            }
+        }
         else {
             // @codingStandardsIgnoreStart
             $this->set_error( 'acf', $this->acf, __( 'Advanced Custom Fields is not active! Please install and activate the plugin to save acf meta fields.', 'geniem_importer' ) );
@@ -1088,6 +1053,74 @@ class Post {
 
         // This functions is done.
         $this->set_save_state( 'acf' );
+    }
+
+    /**
+     * This handles the actual saving of the acf fields. It checks if each field is a
+     * group field and then calls itself for each of the sub fields
+     *
+     * TODO: same handling for repeaters.
+     *
+     * @param array $fields The fields to check.
+     * @param array $parent_groupable Array of a parent groupable field.
+     * @return void
+     */
+    protected function save_acf_fields( $fields, $parent_groupable = [] ) {
+
+        foreach ( $fields as $field ) {
+            // The key must be set.
+            if ( empty( Api::get_prop( $field, 'key', '' ) ) ) {
+                continue;
+            }
+
+            $type  = Api::get_prop( $field, 'type', 'default' );
+            $key   = Api::get_prop( $field, 'key', '' );
+            $value = Api::get_prop( $field, 'value', '' );
+
+            switch ( $type ) {
+
+                case 'group':
+                    $parent_groupable_for_sub_fields = [
+                        'key'   => $key,
+                        'value' => [],
+                    ];
+
+                    $this->save_acf_fields( $value, $parent_groupable_for_sub_fields );
+                    break;
+
+                case 'image':
+                    // Check if image exists and fetch its ID. Otherwise the ID is an empty string, which
+                    // sets the image field as empty.
+                    $attachment_gi_id   = Settings::get( 'GI_ATTACHMENT_PREFIX' ) . $value;
+                    $attachment_post_id = $this->attachment_ids[ $attachment_gi_id ] ?? '';
+
+                    // If the image is a sub field, add it to the parent's fields array.
+                    if ( ! empty( $parent_groupable ) ) {
+                        $parent_groupable['value'][ $key ] = $attachment_post_id;
+                    }
+                    // Else update the field itself
+                    else {
+                        update_field( $key, $attachment_post_id, $this->post_id );
+                    }
+
+                    break;
+
+                // @todo Test which field types require no extra logic.
+                // Currently tested: 'select'
+                default:
+                    if ( ! empty( $parent_groupable ) ) {
+                        $parent_groupable['value'][ $key ] = $value;
+                    }
+                    else {
+                        update_field( $key, $value, $this->post_id );
+                    }
+                    break;
+            }
+        }
+
+        if ( ! empty( $parent_groupable['key'] ) && ! empty( $parent_groupable['value'] ) ) {
+            update_field( $parent_groupable['key'], $parent_groupable['value'], $this->post_id );
+        }
     }
 
     /**
