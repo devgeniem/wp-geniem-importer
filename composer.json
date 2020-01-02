@@ -1,7 +1,7 @@
 {
     "name": "devgeniem/wp-enterpise-importer",
     "type": "wordpress-plugin",
-    "description": "A WordPress plugin that enables commenting for DustPress based themes.",
+    "description": "An object-oriented WordPress importer.",
     "authors": [
         {
             "name": "Ville Siltala",
