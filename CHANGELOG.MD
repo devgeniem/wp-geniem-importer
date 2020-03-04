@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Released
 
+## [1.0.1] - 2020-03-04
+
+### Fixed
+- Not detecting all languages if importing from backend
+
 ## [1.0.0] - 2018-01-26
 
 ### Changed
