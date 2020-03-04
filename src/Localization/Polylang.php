@@ -52,12 +52,15 @@ class Polylang {
             ? $polylang
             : null;
 
-        if ( $polylang ) {
+        if ( \function_exists( 'pll_languages_list' ) ) {
             /**
              * Get current languages.
              * Returns list of language codes.
              */
             self::$languages = pll_languages_list();
+        }
+
+        if ( $polylang ) {
 
             // Media index might not be set by default.
             if ( isset( $polylang->options['media'] ) ) {
