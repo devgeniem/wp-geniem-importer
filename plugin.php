@@ -106,8 +106,19 @@ class Importer_Plugin {
      * @return array         Modified $tables.
      */
     public static function wpmu_drop_tables( array $tables ) : array {
-        $tables[] = static::check_table();
+        $tables[] = static::install();
         return $tables;
+    }
+
+    /**
+     * Register table for specific blog
+     *
+     * @param int $blog_id Blog id.
+     */
+    public static function register_table_for_blog( int $blog_id ) {
+        \switch_to_blog( $blog_id );
+        static::install();
+        \restore_current_blog();
     }
 }
 
