@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Released
 
+## [1.0.2] - 2020-11-04
+
+### Fixed
+- Multisite related db creation
+
 ## [1.0.1] - 2020-03-04
 
 ### Fixed
