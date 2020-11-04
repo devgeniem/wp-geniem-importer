@@ -61,7 +61,7 @@ class Importer_Plugin {
 
         require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
         $res = dbDelta( $sql );
-
+        return $table_name;
     }
 
     /**
@@ -84,6 +84,30 @@ class Importer_Plugin {
 
          // Load the plugin textdomain.
         load_plugin_textdomain( 'geniem-importer', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+        \add_action( 'wpmu_new_blog', [ __CLASS__, 'wpmu_new_blog' ] );
+        \add_filter( 'wpmu_drop_tables', [ __CLASS__, 'wpmu_drop_tables' ] );
+    }
+
+    /**
+     * Register plugin tables on new blog create if plugin is activated network wide.
+     *
+     * @param int $blog_id Blog id that was created.
+     */
+    public static function wpmu_new_blog( int $blog_id ) {
+        if ( \is_plugin_active_for_network( __FILE__ ) ) {
+            static::register_table_for_blog( $blog_id );
+        }
+    }
+
+    /**
+     * Ran on blog deletion to delete plugin tables related to that blog
+     *
+     * @param  array $tables Tables to drop.
+     * @return array         Modified $tables.
+     */
+    public static function wpmu_drop_tables( array $tables ) : array {
+        $tables[] = static::check_table();
+        return $tables;
     }
 }
 
