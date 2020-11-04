@@ -65,15 +65,36 @@ class Importer_Plugin {
     }
 
     /**
+     * Create tables on plugin activation
+     *
+     * @param bool $network_wide Whether we are activating the plugin network wide.
+     */
+    public static function create_tables_hook( bool $network_wide = false ) {
+        if (
+            \is_multisite() &&
+            $network_wide
+        ) {
+
+            // If we are activating this network wide then generate tables for each blog
+            global $wpdb;
+            $blog_ids = \get_sites( [ 'fields' => 'ids' ] );
+            foreach ( $blog_ids as $blog_id ) {
+                static::register_table_for_blog( $blog_id );
+            }
+        }
+        else {
+            static::install();
+        }
+    }
+
+    /**
      * Initialize the plugin.
      */
     public static function init() {
-
         // If a custom autoloader exists, use it.
         if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
             require __DIR__ . '/vendor/autoload.php';
         }
-
         // Set the plugin version.
         $plugin_data = get_plugin_data( __FILE__, false, false );
         self::$plugin_data = wp_parse_args( $plugin_data, self::$plugin_data );
@@ -123,7 +144,7 @@ class Importer_Plugin {
 }
 
 // Install the plugin.
-register_activation_hook( __FILE__, __NAMESPACE__ . '\\Importer_Plugin::install' );
+\register_activation_hook( __FILE__, __NAMESPACE__ . '\\Importer_Plugin::create_tables_hook' );
 
 // Initialize the plugin.
 add_action( 'init', __NAMESPACE__ . '\\Importer_Plugin::init' );
