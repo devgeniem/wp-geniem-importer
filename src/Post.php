@@ -958,7 +958,8 @@ class Post {
                     }
 
                     // If attachment id exists
-                    $attachment_post_id = $this->attachment_ids[ $value ] ?? '';
+                    $attachment_prefix  = Settings::get('attachment_prefix');
+                    $attachment_post_id = $this->attachment_ids[  $attachment_prefix  . $value ] ?? '';
 
                     // If not empty set _thumbnail_id
                     if ( ! empty( $attachment_post_id ) ) {
