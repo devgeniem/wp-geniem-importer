@@ -35,7 +35,11 @@ class Api {
         $results = $wpdb->get_col( $prepared );
 
         if ( ! empty( $results ) ) {
-            return (int) $results[0];
+            foreach( $results as $result ) {
+                if ( strpos( $post_meta_key , $result ) !== false ) {
+                    return (int) $result;
+                }
+            }
         }
 
         return false;
