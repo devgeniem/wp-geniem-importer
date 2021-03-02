@@ -42,6 +42,8 @@ class Api {
             return (int) $results[0];
         }
 
+        // if there is more than one result
+        // check if post meta key contains result id
         foreach( $results as $result ) {
             if ( strpos( $post_meta_key , $result ) !== false ) {
                 return (int) $result;
