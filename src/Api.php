@@ -34,8 +34,20 @@ class Api {
         // Fetch results from the postmeta table.
         $results = $wpdb->get_col( $prepared );
 
-        if ( ! empty( $results ) ) {
+        if ( empty( $results ) ) {
+            return false;
+        }
+
+        if ( count( $results ) === 1 ) {
             return (int) $results[0];
+        }
+
+        // if there is more than one result
+        // check if post meta key contains result id
+        foreach( $results as $result ) {
+            if ( strpos( $post_meta_key , $result ) !== false ) {
+                return (int) $result;
+            }
         }
 
         return false;
