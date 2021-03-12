@@ -1,5 +1,5 @@
 {
-    "name": "devgeniem/wp-enterpise-importer",
+    "name": "devgeniem/wp-geniem-importer",
     "type": "wordpress-plugin",
     "description": "An object-oriented WordPress importer.",
     "authors": [
